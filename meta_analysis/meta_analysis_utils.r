@@ -26,6 +26,71 @@ search_for_files <- function(file)
     return(list(gene_file=gene_file, variant_file=variant_file, gz=gz))
 }
 
+extract_file_info <- function(filename)
+{
+	gz <- ifelse(grepl(".gz$", filename), TRUE, FALSE)
+	filename <- gsub(".gz$", "", filename)
+	filename <- gsub("cleaned.", "", filename)
+	file_info <- as.list(strsplit(filename, split="\\.")[[1]])
+
+	if (!(length(file_info) %in% c(12, 13))) {
+		print(file_info)
+		stop("Incorrect file naming convention, please check filenames")
+	}
+
+	if (length(file_info) == 13) {
+		binary <- TRUE
+		names(file_info) <- c(
+			"dataset",
+			"last_name",
+			"analysis_name",
+			"phenotype",
+			"freeze_number",
+			"sex",
+			"ancestry",
+			"n_cases",
+			"n_controls",
+			"software",
+			"type",
+			"date",
+			"split")
+	} else {
+		binary <- FALSE
+		names(file_info) <- c(
+			"dataset",
+			"last_name",
+			"analysis_name",
+			"phenotype",
+			"freeze_number",
+			"sex",
+			"ancestry",
+			"n",
+			"software",
+			"type",
+			"date",
+			"split")
+	}
+
+	file_info$gz <- gz
+	file_info$binary <- binary
+	return(file_info)
+}
+
+add_N_using_filename <- function(file_info, dt)
+{
+    if (!file_info$binary) {
+        dt$N_eff <- file_info$n
+    } else {
+        N_case <- file_info$n_cases
+        N_control <- file_info$n_controls
+        N_eff <- (4 * N_case * N_control) / (N_case + N_control)
+        dt$N_eff <- N_eff
+        dt$N_case <- N_case
+        dt$N_control <- N_control
+    }
+    return(dt)
+}
+
 add_N <- function(file_info, dt_gene)
 {
     # Read in the variant file to extract the sample size
@@ -181,15 +246,124 @@ run_weighted_fisher <- function(
 	return(result)
 }
 
-het_test <- function(input_beta, weights=NULL)
+create_gene_data_table <- function(group_files_lines)
 {
+	group_files_variant_line <- group_files_lines[1]
+	group_files_group_line <- group_files_lines[2]
+	to_munge_variant <- strsplit(group_files_variant_line, split=" ")[[1]]
+	n <- length(to_munge_variant)
+	to_munge_group <- strsplit(group_files_group_line, split=" ")[[1]]
+	if (n != length(to_munge_group)) {
+		stop("Error: number of variants in the region does not match the number of groups in the region")
+	}
+	return(data.table(Region=to_munge_variant[1],
+		MarkerID=to_munge_variant[3:n],
+		Group=to_munge_group[3:n]))
+}
 
-	beta_meta=sum_betas/sum_weights
-	het_p=het_test(effs_size_org, weights, beta_meta)
+extract_group_file_information <- function(regexp_group_files) {
+	# Extact the directory portion and the regular expression within the folder
+	regexp_group_files <- strsplit(regexp_group_files, "/")[[1]]
+	if (length(regexp_group_files) > 1) {
+		directory <- paste(regexp_group_files[1:(length(regexp_group_files)-1)], collapse="/")
+		regexp_group_files <- regexp_group_files[length(regexp_group_files)]
+	} else {
+		directory <- "."
+	}
+	group_files <- lapply(dir(directory, pattern=regexp_group_files), fread, sep="@", header=FALSE)
+	group_files <- rbindlist(group_files)
+	print(group_files)
+	gene_data_table_list <- list()
+	total_lines <- nrow(group_files)
+	i <- 0
+	for (i in 1:(nrow(group_files)/2)) {
+		print(i)
+		gene_data_table_list[[i]] <- create_gene_data_table(group_files$V1[(2*i-1):(2*i)])
+	}
+	gene_data_table <- rbindlist(gene_data_table_list)
+	return(gene_data_table)
+}
 
-    n_studies <- length(input_beta)
-    effect_size_deviations  <- weights * (input_beta - effect_size_meta)^2
-    return(pchisq(sum(effect_size_deviations, n_studies-1, lower.tail=FALSE)))
+combine_gene_and_variant_information <- function(variant_file, gene_data_table)
+{
+	# Merge with the variant files to obtain the variants that have a MAC>10 in the analysed dataset
+	dt_variant <- fread(variant_file)
+	# Deal with the ultra-rare variants
+	setkey(dt_variant, "MarkerID")
+	setkey(gene_data_table, "MarkerID")
+
+	dt <- merge(dt_variant, gene_data_table, all=TRUE)
+	dt[, Region:=ifelse(CHR=="UR", gsub(":.*", "", MarkerID), Region)]
+	dt[, Group:=ifelse(CHR=="UR", gsub(".*:(.*):.*", "\\1", MarkerID), Group)]
+	dt[, Tstat := ifelse(AF_Allele2 > 0.5, -Tstat, Tstat)]
+	dt[, MAF := pmin(AF_Allele2, 1-AF_Allele2)]
+	return(dt)
+}
+
+extract_combined_annotations <- function(gene_file) {
+	dt_gene <- fread("data/meta_analysis/gcloud/uk-biobank.palmer.PRELIMINARY.Coronary_artery_disease.JULY23Freeze.ALL.EUR.19915.382460.SAIGE.gene.20240110.cleaned.txt.gz")
+	combined_annotations <- grep(";", unique(dt_gene$Group), value=TRUE)
+	return(combined_annotations)
+}
+
+extract_beta_burden <- function(dt, combined_annotations, max_MAF)
+{
+	dt <- dt %>% filter(!is.na(Region))
+	m <- max_MAF
+	dt_common <- dt %>% 
+		filter(CHR != "UR", MAF < max_MAF) %>% 
+		group_by(Region, Group) %>% 
+		summarise(
+			numerator_common = sum(Tstat),
+			denominator_common = sum(var))
+	dt_rare <- dt %>% filter(CHR == "UR") %>% 
+		mutate(max_MAF = as.numeric(gsub(".*:", "", MarkerID))) %>% 
+		filter(max_MAF == m) %>% group_by(Region, Group) %>% 
+		summarise(
+			numerator_rare = sum(Tstat),
+			denominator_rare = sum(var))
+	dt_common <- data.table(dt_common)
+	
+	# Finally, if there are any combined annotations, then
+	# include those
+
+	# The below just needs to be done for dt_common, not for dt_rare.
+	dt_common_combined_list <- list()
+	for (str_comb_annot in combined_annotations) {
+		combined_annotation_vector <- strsplit(str_comb_annot, split=";")[[1]]
+		dt_common_combined_list[[str_comb_annot]] <- dt_common %>% group_by(Region) %>% 
+			filter(Group %in% combined_annotation_vector) %>%
+			summarise(
+				numerator_common = sum(numerator_common),
+				denominator_common = sum(denominator_common)
+				) %>% mutate(Group = str_comb_annot)
+	}
+	rbind(rbindlist(dt_common_combined_list), dt_common)
+
+	setkeyv(dt_common, c("Region", "Group"))
+	dt_rare <- data.table(dt_rare)
+	setkeyv(dt_rare, c("Region", "Group"))
+	dt <- merge(dt_common, dt_rare, all=TRUE)
+	
+	# Numerator
+	dt[, numerator_common := ifelse(is.na(numerator_common), 0, numerator_common)]
+	dt[, numerator_rare := ifelse(is.na(numerator_rare), 0, numerator_rare)]
+
+	# Denominator
+	dt[, denominator_common := ifelse(is.na(denominator_common), 0, denominator_common)]
+	dt[, denominator_rare := ifelse(is.na(denominator_rare), 0, denominator_rare)]
+	return(dt)
+}
+
+extract_beta_burden_across_MAFs <- function(dt, max_MAFs, combined_annotations) {
+	# Loop over max MAFs
+	dt_list <- list()
+	# unique(dt_gene$max_MAF[!is.na(dt_gene$max_MAF)])
+	for (m in max_MAFs) {
+		dt_list[[as.character(m)]] <- extract_beta_burden(dt, combined_annotations, m)
+		dt_list[[as.character(m)]]$max_MAF <- m
+	}
+	dt_out <- rbindlist(dt_list) %>% group_by(Region, Group, max_MAF)
 }
 
 run_heterogeneity <- function(
@@ -209,9 +383,9 @@ run_heterogeneity <- function(
 		merge(grouped_dt, summary_dt) %>% 
 		mutate(
 			deviation = weights * (beta - .data[[output_meta_beta]])^2
-		) %>% 
+		) %>% group_by(across(as.character(groups(grouped_dt)))) %>%
 		summarise(sum_deviation = sum(deviation), n_studies=n()) %>% 
-		mutate(p_het = pchisq(sum_deviation, n_studies-1))
+		filter(n_studies > 1) %>% mutate(p_het = pchisq(sum_deviation, n_studies-1, lower.tail=FALSE))
 	)
 }
 
