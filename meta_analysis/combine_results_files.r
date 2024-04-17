@@ -38,4 +38,5 @@ for (file in files) {
     dt_tmp$ancestry <- ancestry
     dt_list[[file]] <- dt_tmp
 }
+
 dt <- rbindlist(dt_list)

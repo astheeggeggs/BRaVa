@@ -135,7 +135,7 @@ main <- function(args)
         dt_meta_cauchy[[test]][["weighted Fisher"]] <- run_weighted_fisher(
             dt_cauchy[[test]] %>% group_by(Region),
             "N_eff", "Pvalue", "Pvalue") %>% mutate(Stat = NA, type="weighted Fisher")
-        # Stouffer's Z - Make sure P-values match, Stat= weighted_Z_Burden_Stouffer
+        # Stouffer's Z - Make sure P-values match, Stat = weighted_Z_Burden_Stouffer
         dt_meta_cauchy[[test]][["Stouffer"]] <- run_stouffer(dt_cauchy[[test]] %>% group_by(Region),
             "N_eff", "Stat", "Pvalue", "Pvalue") %>% mutate(type="Stouffer")
         dt_meta_cauchy[[test]] <- rbindlist(dt_meta_cauchy[[test]], use.names=TRUE) %>% mutate(class=test)
