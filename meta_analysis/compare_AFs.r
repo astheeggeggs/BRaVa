@@ -47,7 +47,7 @@ dt$Group <- recode(dt$Group, !!!renaming_plot_group_list)
 
 # Print the updated data frame
 print(df)
-pdf(width=10, height=10)
+pdf(file="compare_CAFs.pdf", width=10, height=10)
 for (anc in unique(dt$ancestry)) {
 	dt_tmp <- dt %>% filter(ancestry == anc)
 	biobanks <- unique(dt_tmp$biobank)
