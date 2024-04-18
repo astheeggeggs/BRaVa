@@ -13,25 +13,6 @@ source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
 # Let the case control threshold be an option
 # Let the N threshold be an option
 
-checks <- function(file_info, file_info_template, datasets) {
-    if (file_info$phenotype != file_info_template$phenotype) {
-        print(file_info)
-        stop("phenotype does not match - check files or rename")
-    }
-    if (file_info$sex != file_info_template$sex) {
-        print(file_info)
-        stop("meta-analysis of different sex - check files")
-    }
-    if (file_info$type != file_info_template$type) {
-        print(file_info)
-        stop("attempting to meta-analyse gene based results with variant results - check files")
-    }
-    if (file_info$binary != file_info_template$binary) {
-        print(file_info)
-        stop("attempting to analyse binary phenotype with a continuous phenotype")
-    }
-}
-
 main <- function(args)
 {
     files <- strsplit(args$file_paths, split=",")[[1]]

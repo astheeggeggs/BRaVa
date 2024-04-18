@@ -2,53 +2,15 @@
 library(data.table)
 library(dplyr)
 
-# Renaming errors
-renaming_group_list <- list(
-	`damaging_missense_or_protein_altering` = c("damaging_missense", "missenseLC"),
-	`other_missense_or_protein_altering` = c("other_missense"),
-	`pLoF;damaging_missense_or_protein_altering` = c("pLoF;damaging_missense", "pLoF;missenseLC", "damaging_missense;pLoF"),
-	`pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous` = c(
-		"pLoF;damaging_missense;other_missense;synonymous",
-		"pLoF;damaging_missense;other_missense;synonymous;pLoF"),
-	Cauchy = c(NA)
-)
-
-renaming_header_list <- list(
-	`Region` = c("gene"),
-	`Group` = c("annot"),
-	`max_MAF` = c("max_maf"),
-	`Pvalue` = c("p_value"),
-	`Pvalue_Burden` = c("p_value_burden"),
-	`Pvalue_SKAT` = c("p_value_skat"),
-	`BETA_Burden` = c("beta_burden"),
-	`SE_Burden` = c("se_burden"),
-	`MAC` = c("mac"),
-	`MAC_case` = c("mac_case"),
-	`MAC_control` = c("mac_control"), 
-	`Number_rare` = c("rare_var_count"),
-	`Number_ultra_rare` = c("ultrarare_var_count")
-)
-
-correct_names <- c("pLoF",
-	"damaging_missense_or_protein_altering",
-	"other_missense_or_protein_altering",
-	"synonymous",
-	"pLoF;damaging_missense_or_protein_altering",
-	"pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous",
-	"Cauchy")
+source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
 
 folder_to_check <- "~/Repositories/BRaVa_curation/data/meta_analysis/gcloud"
 files_to_check <- grep("\\.gene", dir(folder_to_check, full.names=TRUE), value=TRUE)
 files_to_check <- setdiff(files_to_check, grep("cleaned", files_to_check, value=TRUE))
 print(files_to_check)
 
-# Expected columns
-default_gene_result_columns <- c(
-	"Region", "Group", "max_MAF", "Pvalue",
-	"Pvalue_Burden", "Pvalue_SKAT","BETA_Burden", "SE_Burden",
-	"MAC", "MAC_case", "MAC_control", "Number_rare", "Number_ultra_rare")
-
-for (f in files_to_check) {
+for (f in files_to_check)
+{
 	cat(paste0("checking file...", f, "...\n"))
 	dt <- fread(f)
 

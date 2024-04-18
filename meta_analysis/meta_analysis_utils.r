@@ -1,3 +1,118 @@
+# Renaming errors
+renaming_group_list <- list(
+	`damaging_missense_or_protein_altering` = c("damaging_missense", "missenseLC"),
+	`other_missense_or_protein_altering` = c("other_missense"),
+	`pLoF;damaging_missense_or_protein_altering` = c("pLoF;damaging_missense", "pLoF;missenseLC", "damaging_missense;pLoF"),
+	`pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous` = c(
+		"pLoF;damaging_missense;other_missense;synonymous",
+		"pLoF;damaging_missense;other_missense;synonymous;pLoF"),
+	Cauchy = c(NA)
+)
+
+renaming_header_list <- list(
+	`Region` = c("gene"),
+	`Group` = c("annot"),
+	`max_MAF` = c("max_maf"),
+	`Pvalue` = c("p_value"),
+	`Pvalue_Burden` = c("p_value_burden"),
+	`Pvalue_SKAT` = c("p_value_skat"),
+	`BETA_Burden` = c("beta_burden"),
+	`SE_Burden` = c("se_burden"),
+	`MAC` = c("mac"),
+	`MAC_case` = c("mac_case"),
+	`MAC_control` = c("mac_control"), 
+	`Number_rare` = c("rare_var_count"),
+	`Number_ultra_rare` = c("ultrarare_var_count")
+)
+
+# Expected annotation names
+correct_names <- c("pLoF",
+	"damaging_missense_or_protein_altering",
+	"other_missense_or_protein_altering",
+	"synonymous",
+	"pLoF;damaging_missense_or_protein_altering",
+	"pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous",
+	"Cauchy")
+
+requested_max_MAFs <- c(1e-4, 1e-3, 1e-2)
+
+# Expected columns of gene results files
+default_gene_result_columns <- c(
+	"Region", "Group", "max_MAF", "Pvalue",
+	"Pvalue_Burden", "Pvalue_SKAT","BETA_Burden", "SE_Burden",
+	"MAC", "MAC_case", "MAC_control", "Number_rare", "Number_ultra_rare")
+
+minimal_gene_result_columns <- c(
+    "Region", "Group", "max_MAF", "Pvalue", "Pvalue_Burden", "Pvalue_SKAT",
+    "BETA_Burden", "SE_Burden")
+
+renaming_plot_group_list <- list(
+    damaging_missense_or_protein_altering = "Damaging missense or PA",
+    other_missense_or_protein_altering = "Other missense or PA",
+    synonymous = "Synonymous",
+    pLoF = "pLoF"
+)
+
+file_check_information <- list(
+	datasets = c(
+		"all-of-us",
+		"alspac",
+		"biome",
+		"bbj",
+		"ckb",
+		"ccpm",
+		"decode",
+		"egcut",
+		"dan-rav",
+		"genes-and-health",
+		"gel",
+		"mgbb",
+		"pmbb",
+		"qatar-genomes",
+		"uk-biobank",
+		"viking-genes"
+	),
+	phenotypes = c(
+		"AAA", "AcApp","AcuLymLeuk", "Adenomy", "AMD", "ALamy", "AUD","AloAre",
+		"AnoNer", "AoSten", "Asth", "AtopDis", "AFib", "ADHD", "ASD", "BCLL",
+		"BenCervUterNeo", "BenIntNeo", "BenNodGoit", "BladCanc", "BrainCNSCanc",
+		"BreastCanc", "BrugSynd", "BuliNer", "BullPemph", "CarShock", "HCM","CRVO",
+		"CervCanc", "CML", "COPD", "CRF", "CoffSirSynd", "ColonRectCanc", "CAD",
+		"CCANS", "EatDis", "Endocar", "Endometr", "EsophCanc", "EssThrom", "EFRMB",
+		"FSP", "FemInf", "FemInfAC", "FolLymph", "Gout", "GravesDis", "HemoChromo",
+		"HF", "HepCarcin","HTN", "HHD", "HypoThyr", "HypoThyrSec", "IPF", "ITP",
+		"IBD", "IFHern", "ILDSarc", "IodDef", "KabSynd", "KidCanc", "KleefSynd",
+		"LaryxCanc", "Leuk", "LiverCanc", "LiverFibCirr", "LongQTSynd",
+		"LymphThyrit", "MalInf", "MatHem", "MatHypDis", "MODYDiab", "MultiMyel",
+		"MS", "MECS", "Myocard", "Narco1", "NonFuncPitAd", "NHL", "NonPapTCCBlad",
+		"NonRheuValv", "OUD", "OCD", "OvCanc", "Pancreat", "ParkDis", "PeptUlcer",
+		"PAD", "PlacInsuf", "PCOS", "PolycythVera", "Preeclamps", "PregLoss",
+		"POAG", "PrimSjoSynd", "Prolactinom", "Psori", "RheumHeaDis", "RheumArth",
+		"RomWardSynd", "Sarcoid", "SebDerm", "SpinaBifAp", "StomCanc", "Stroke",
+		"SLE", "TAAD", "ThyroCanc", "T2Diab", "Urolith", "UterCanc", "VaricVeins",
+		"VTE", "ALT", "AlcCons", "AST", "BMI", "CRP", "CACS", "CK", "HDLC",
+		"Height", "LDLC", "TChol", "TG", "WHRBMI", "LVH", "Append", "HipRep",
+		"CogAbil", "EduAtt", "PsySymp", "SchGrades", "SCDCAT"
+	),
+	sexes = c(
+		"ALL",
+		"M",
+		"F"
+	),
+	ancestries = c(
+		"AFR",
+		"AMR",
+		"EAS",
+		"EUR",
+		"MID",
+		"SAS"
+	),
+	types = c(
+		"gene",
+		"variant"
+	)
+)
+
 search_for_files <- function(file)
 {
     if (file.exists(paste0("gene/", file, ".txt.gz")) &
@@ -24,6 +139,25 @@ search_for_files <- function(file)
         return(NULL)
     }
     return(list(gene_file=gene_file, variant_file=variant_file, gz=gz))
+}
+
+checks <- function(file_info, file_info_template, datasets) {
+    if (file_info$phenotype != file_info_template$phenotype) {
+        print(file_info)
+        stop("phenotype does not match - check files or rename")
+    }
+    if (file_info$sex != file_info_template$sex) {
+        print(file_info)
+        stop("meta-analysis of different sex - check files")
+    }
+    if (file_info$type != file_info_template$type) {
+        print(file_info)
+        stop("attempting to meta-analyse gene based results with variant results - check files")
+    }
+    if (file_info$binary != file_info_template$binary) {
+        print(file_info)
+        stop("attempting to analyse binary phenotype with a continuous phenotype")
+    }
 }
 
 extract_file_info <- function(filename)
