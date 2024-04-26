@@ -14,7 +14,7 @@ main <- function(args)
         cat(paste0("checking file...", f, "...\n"))
         
         # Throw an error if the file is not there
-        if (!file.exists(f)) {
+        if (!file.exists(f) & !args$just_filename) {
             stop(paste("File:", file, "does not exist."))
         }
 
@@ -31,23 +31,23 @@ main <- function(args)
 
         cat("\nchecking file naming...\n")
         # Use this to perform series of checks
-        if (!(file_info$dataset %in% file_check_information$datasets)) {
-            cat(paste0("accepted dataset names:\n", paste(file_check_information$datasets, collapse="\n"), "\n"))
+        if (!(file_info$dataset %in% names(file_check_information$dataset))) {
+            cat(paste0("accepted dataset names:\n", paste(names(file_check_information$dataset), collapse="\n"), "\n"))
             stop(paste0(file_info$dataset, " is not in the accepted collection of dataset names"))
         }
 
-        if (!(file_info$phenotype %in% file_check_information$phenotypes)) {
-            cat(paste0("accepted (unique) phenotype abbreviations:\n", paste(file_check_information$phenotypes, collapse="\n"), "\n"))
+        if (!(file_info$phenotype %in% names(file_check_information$phenotype))) {
+            cat(paste0("accepted (unique) phenotype abbreviations:\n", paste(file_check_information$phenotype, collapse="\n"), "\n"))
             stop(paste0(file_info$phenotype, " is not in the accepted collection of dataset names"))
         }
 
-        if (!(file_info$ancestry %in% file_check_information$ancestries)) {
-            cat(paste0("accepted population labels:\n", paste(file_check_information$ancestries, collapse="\n"), "\n"))
+        if (!(file_info$ancestry %in% names(file_check_information$ancestry))) {
+            cat(paste0("accepted population labels:\n", paste(file_check_information$ancestry, collapse="\n"), "\n"))
             stop(paste0(file_info$ancestry, " is not in the accepted collection of population labels"))
         }
 
-        if (!(file_info$sex %in% file_check_information$sexes)) {
-            cat(paste0("accepted sex labels:\n", paste(file_check_information$sexes, collapse="\n"), "\n"))
+        if (!(file_info$sex %in% names(file_check_information$sex))) {
+            cat(paste0("accepted sex labels:\n", paste(file_check_information$sex, collapse="\n"), "\n"))
             stop(paste0(file_info$sex, " is not in the accepted collection of sex labels"))
         }
 
@@ -56,11 +56,16 @@ main <- function(args)
             stop(paste0(file_info$type, " is not 'gene'"))
         }
 
-        cat("\nnaming convention checking complete!\n")
+        cat("naming convention checking complete!\n")
 
         if (!file_info$gz) {
             cat("\nThe file does not appear to be compressed\n",
                 "consider compressing before uploading to the cloud\n")
+        }
+
+        if (args$just_filename) {
+             cat("just file naming...\n")
+             break
         }
 
         dt_header <- fread(cmd = ifelse(file_info$gz,
@@ -73,11 +78,20 @@ main <- function(args)
         }
 
         # Now, ensure that all of the required columns are present
-        if (all(minimal_gene_result_columns %in% gene_results_file_columns)) {
+        if (all(default_gene_result_columns$minimal %in% gene_results_file_columns))
+        {
             cat("\nall required gene results columns are present\n")
-            if (all(default_gene_result_columns %in% gene_results_file_columns)) {
-                cat("allele counts are also present\n")
+            if (file_info$binary) {
+                if (all(default_gene_result_columns$binary %in% gene_results_file_columns)) {
+                    cat("allele counts are also present\n")
+                }
             }
+            if (!file_info$binary) {
+                if (all(default_gene_result_columns$continuous %in% gene_results_file_columns)) {
+                    cat("allele counts are also present\n")
+                }
+            }
+
         } else {
             cat("\na collection of columns are missing, perhaps there is a naming issue?\n")
             cat(paste0("columns missing:\n",
@@ -117,7 +131,7 @@ main <- function(args)
                     "this is likely because this subset of the dataset you are looking at is quite small\n"))
             }
         }
-                
+
         # Determine that the format of the gene names is correct
         if (all(grepl("ENSG[0-9]+", dt$Region))) {
             cat("\nall Region names contain ensembl gene IDs\n")
@@ -129,12 +143,14 @@ main <- function(args)
             " appears to be correctly named and contains the information we need!\n",
             "Thank you Prof/Dr/Ms/Mr/Miss ", file_info$last_name, "!\n"))
     }
-    cat("\nall files passed!\n")
+    cat("all files passed!\n")
 }
 
 # Add arguments
 parser <- ArgumentParser()
 parser$add_argument("--file_paths", default=NULL, required=TRUE,
+    help="Comma separated file paths for gene-based results files for meta-analysis")
+parser$add_argument("--just_filename", default=FALSE, action="store_true",
     help="Comma separated file paths for gene-based results files for meta-analysis")
 args <- parser$parse_args()
 

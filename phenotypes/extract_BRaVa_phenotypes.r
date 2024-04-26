@@ -9,13 +9,13 @@ munge_BRaVa_ICD_proposals <- function() {
 	# Download and extract the case and control ICD9/10 codes from the BRaVa nominate phenotypes file
 	dt <- read_sheet("https://docs.google.com/spreadsheets/d/1YqdSyxf2OyoIYvLnDVj7NmbpebtppsgyJSq18gkVAWI/edit#gid=1716081249", sheet="ICD_Phecode", skip=3)
 	cols <- c(
-		"Description",
+		"Description", "Phenotype ID",
 		"ICD10_control_exclude", "ICD10_case_include",
 		"ICD9_control_exclude", "ICD9_case_include")
 	dt <- dt[, cols, with=FALSE]
 	# Remove empty rows
 	dt <- dt %>% filter(!is.na(Description))
-	names(dt) <- c("phenotype", "ICD10_control_exclude", "ICD10_case_include", "ICD9_control_exclude", "ICD9_case_include")
+	names(dt) <- c("phenotype", "phenotypeID", "ICD10_control_exclude", "ICD10_case_include", "ICD9_control_exclude", "ICD9_case_include")
 	dt <- data.table(dt)
 
 	# Remove any extra spaces
@@ -124,8 +124,8 @@ extract_ID_and_ICD_UKB <- function(
 
 extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 	
-	cols <- dt_query$phenotype
-	dt_data[, (cols) := 0]
+	cols <- dt_query %>% select(phenotype, phenotypeID)
+	dt_data[, (cols$phenotypeID) := 0]
 
 	simplify_query <- function(query) {
 		# Simplify to speed things up
@@ -143,10 +143,10 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 		return(query)
 	}
 
-	for (i in 1:length(cols)) {
+	for (i in 1:nrow(cols)) {
 		# Add a new column to dt_data
-		phenotype <- cols[i]
-		cat(paste0(phenotype, "...\n"))
+		phenotypeID <- cols$phenotypeID[i]
+		cat(paste0(cols$phenotype[i], " (phenotype ID: ", phenotypeID, ")...\n"))
 
 		if (dt_query$ICD10_control_exclude[i] != "")
 		{
@@ -157,11 +157,11 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 				if (query != "") {
 					query <- gsub("$", ".*", query)
 				}
-				print(query)
+				cat(paste0("query regular expression: ", query, "\n"))
 			}
 			ICD10_where <- grep(query, dt_data$ICD10_string)
 			cat(paste0("ICD10 control exclusions: ", length(ICD10_where), "...\n"))
-			dt_data[[phenotype]][ICD10_where] <- NA
+			dt_data[[phenotypeID]][ICD10_where] <- NA
 			dt_query$ICD10_control_exclude[i] <- query
 		}
 
@@ -174,15 +174,15 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 				if (query != "") {
 					query <- gsub("$", ".*", query)
 				}
-				print(query)
+				cat(paste0("query regular expression: ", query, "\n"))
 			}
 			ICD9_where <- grep(query, dt_data$ICD9_string)
 			cat(paste0("ICD9 control exclusions: ", length(ICD9_where), "...\n"))
-			dt_data[[phenotype]][ICD9_where] <- NA
+			dt_data[[phenotypeID]][ICD9_where] <- NA
 			dt_query$ICD9_control_exclude[i] <- query
 		}
 
-		cat(paste0("total control exclusions count prior to adding cases: ", sum(is.na(dt_data[[phenotype]])), "\n"))
+		cat(paste0("total control exclusions count prior to adding cases: ", sum(is.na(dt_data[[phenotypeID]])), "\n"))
 
 		if (dt_query$ICD10_case_include[i] != "")
 		{
@@ -193,11 +193,11 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 				if (query != "") {
 					query <- gsub("$", ".*", query)
 				}
-				print(query)
+				cat(paste0("query regular expression: ", query, "\n"))
 			}
 			ICD10_where <- grep(query, dt_data$ICD10_string)
 			cat(paste0("ICD10 cases: ", length(ICD10_where), "...\n"))
-			dt_data[[phenotype]][ICD10_where] <- 1
+			dt_data[[phenotypeID]][ICD10_where] <- 1
 			dt_query$ICD10_case_include[i] <- query
 		}
 
@@ -210,18 +210,18 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 				if (query != "") {
 					query <- gsub("$", ".*", query)
 				}
-				print(query)
+				cat(paste0("query regular expression: ", query, "\n"))
 			}
 			ICD9_where <- grep(query, dt_data$ICD9_string)
 			cat(paste0("ICD9 cases: ", length(ICD9_where), "...\n"))
-			dt_data[[phenotype]][ICD9_where] <- 1
+			dt_data[[phenotypeID]][ICD9_where] <- 1
 			dt_query$ICD9_case_include[i] <- query
 		}
 
-		cat(paste0("total case count: ", sum(dt_data[[phenotype]], na.rm=TRUE), "\n"))
-		cat(paste0("final case count: ", sum(dt_data[[phenotype]], na.rm=TRUE), "\n"))
-		cat(paste0("final control exclusions count after adding cases: ", sum(is.na(dt_data[[phenotype]])), "\n"))
-		cat(paste0("final control count: ", sum(dt_data[[phenotype]] == 0, na.rm=TRUE), "\n"))
+		cat(paste0("total case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
+		cat(paste0("final case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
+		cat(paste0("final control exclusions count after adding cases: ", sum(is.na(dt_data[[phenotypeID]])), "\n"))
+		cat(paste0("final control count: ", sum(dt_data[[phenotypeID]] == 0, na.rm=TRUE), "\n\n"))
 	}
 	return(list(dt_data=dt_data, dt_query=dt_query))
 }
@@ -237,7 +237,9 @@ extract_continuous_trait_counts <- function(
 	get_cols <- function(codes, dt, na.filter=FALSE)
 	{
 		cols <- c()
-		for (code in codes) { cols <- c(cols, grep(paste0("^", code, "\\-"), names(dt), value=TRUE)) }
+		for (code in codes) { 
+			cols <- c(cols, grep(paste0("^", code, "\\-"), names(dt), value=TRUE))
+		}
 		return(cols)
 	}
 
@@ -279,9 +281,9 @@ extract_continuous_trait_counts <- function(
 	
 	dt_cts_classified <- dt_cts_classified %>% mutate(WHR = (`48-0.0` / `49-0.0`))
 	model <- lm(WHR ~ `21001-0.0`, data=dt_cts_classified)
-	WHR_adjust_BMI <- data.table(eid = dt_cts_classified$eid[as.integer(names(resid(model)))], WHR_adjusted_for_BMI = resid(model))
-	setkey(WHR_adjust_BMI, "eid")
-	dt_cts_classified <- merge(dt_cts_classified, WHR_adjust_BMI, all=TRUE)
+	WHRBMI <- data.table(eid = dt_cts_classified$eid[as.integer(names(resid(model)))], WHRBMI = resid(model))
+	setkey(WHRBMI, "eid")
+	dt_cts_classified <- merge(dt_cts_classified, WHRBMI, all=TRUE)
 	
 	if (write_continuous_data_file) {
 		# Map the names back
@@ -289,7 +291,7 @@ extract_continuous_trait_counts <- function(
 		tmp <- gsub("-.*", "", tmp)
 		for (i in 1:length(tmp)) {
 			if (tmp[i] %in% dt_manual$UKB_code) {
-				tmp[i] <- dt_manual$Phenotype[which(dt_manual$UKB_code == tmp[i])]
+				tmp[i] <- dt_manual$PhenotypeID[which(dt_manual$UKB_code == tmp[i])]
 			}
 		}
 		names(dt_cts_classified) <- tmp
@@ -299,13 +301,13 @@ extract_continuous_trait_counts <- function(
 	sum_not_is.na <- function(col) { sum(!is.na(col)) }
 
 	# Split by 1000G label and count the number of non-NA entries
-	dt_counts <- dt_cts_classified %>% group_by(classification_strict) %>% summarise(across(c(pheno_cols, biomarker_cols, "WHR_adjusted_BMI"), sum_not_is.na))
+	dt_counts <- dt_cts_classified %>% group_by(classification_strict) %>% summarise(across(c(pheno_cols, biomarker_cols, "WHRBMI"), sum_not_is.na))
 	dt_counts_t <- data.table::transpose(dt_counts, keep.names="phenotype", make.names="classification_strict") %>% mutate(phenotype = gsub("-.*", "", phenotype)) %>% rename(UKB_code = phenotype)
 	dt_counts_t <- merge(dt_manual, dt_counts_t, all.y=TRUE)
 
 	fwrite(dt_counts_t, file="data/output/UKBB_cts_non_missing_counts.tsv", sep="\t")
 
-	dt_counts <- dt_cts_classified %>% summarise(across(c(pheno_cols, biomarker_cols, "WHR_adjusted_BMI"), sum_not_is.na))
+	dt_counts <- dt_cts_classified %>% summarise(across(c(pheno_cols, biomarker_cols, "WHRBMI"), sum_not_is.na))
 	dt_counts_t <- data.table::transpose(dt_counts, keep.names="phenotype") %>% mutate(phenotype = gsub("-.*", "", phenotype)) %>% rename(UKB_code = phenotype)
 	dt_counts_t <- merge(dt_manual, dt_counts_t, all.y=TRUE)
 
@@ -316,10 +318,10 @@ extract_continuous_trait_counts <- function(
 munge_BRaVa_OPCS4_proposals <- function() {
 	# Download and extract the case and control ICD9/10 codes from the BRaVa nominate phenotypes file
 	dt <- read_sheet("https://docs.google.com/spreadsheets/d/1YqdSyxf2OyoIYvLnDVj7NmbpebtppsgyJSq18gkVAWI/edit#gid=1716081249", sheet="Procedures")
-	cols <- c("Procedures", "OPCS codes")
+	cols <- c("Procedures", "Phenotype ID", "OPCS codes")
 
 	dt <- dt[, cols, with=FALSE]
-	names(dt) <- c("phenotype", "OPCS4_code")
+	names(dt) <- c("phenotype", "phenotypeID", "OPCS4_code")
 	dt <- data.table(dt)
 
 	# Remove any extra spaces
@@ -338,10 +340,8 @@ munge_BRaVa_OPCS4_proposals <- function() {
 }
 
 extract_ID_and_OPCS4_UKB <- function(
-	phenotype_file = "/well/lindgren-ukbb/projects/ukbb-11867/DATA/PHENOTYPE/PHENOTYPE_MAIN/ukb10844_ukb50009_updateddiagnoses_14012022.csv",
-	superpopulation_labels = "/well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/superpopulation_labels.tsv")
+	phenotype_file = "/well/lindgren-ukbb/projects/ukbb-11867/DATA/PHENOTYPE/PHENOTYPE_MAIN/ukb10844_ukb50009_updateddiagnoses_14012022.csv")
 {
-
 	get_cols <- function(codes, dt, na.filter=FALSE)
 	{
 		cols <- c()
@@ -382,22 +382,22 @@ extract_ID_and_OPCS4_UKB <- function(
 
 extract_procedure_case_status <- function(dt_data, dt_query)
 {	
-	cols <- dt_query$phenotype
-	dt_data[, (cols) := 0]
+	cols <- dt_query %>% select(phenotype, phenotypeID)
+	dt_data[, (cols$phenotypeID) := 0]
 	
-	for (i in 1:length(cols)) {
+	for (i in 1:nrow(cols)) {
 		# Add a new column to dt_data
-		phenotype <- cols[i]
-		cat(paste0(phenotype, "...\n"))
+		phenotypeID <- cols$phenotypeID[i]
+		cat(paste0(cols$phenotype[i], " (phenotype ID: ", phenotypeID, ")...\n"))
 
 		if (dt_query$OPCS4_code[i] != "")
 		{
 			query <- dt_query$OPCS4_code[i]
 			OPCS4_where <- grep(query, dt_data$OPCS4_string)
 			cat(paste0("OPCS4 code cases: ", length(OPCS4_where), "...\n"))
-			dt_data[[phenotype]][OPCS4_where] <- 1
+			dt_data[[phenotypeID]][OPCS4_where] <- 1
 		}
-		cat(paste0("total case count: ", sum(dt_data[[phenotype]], na.rm=TRUE), "\n"))
+		cat(paste0("total case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
 	}
 	return(dt_data)
 }
@@ -432,7 +432,7 @@ extract_continuous_trait_counts()
 dt_query_ICD <- munge_BRaVa_ICD_proposals()
 fwrite(dt_query_ICD, file='data/BRaVa_ICD_proposals.tsv', sep='\t', quote=TRUE)
 dt_query_ICD <- fread('data/BRaVa_ICD_proposals.tsv')
-dt_data <- extract_ID_and_ICD_UKB()
+dt_data <- extract_ID_and_ICD_UKB('data/ukb10844_ukb50009_updateddiagnoses_14012022.csv.gz')
 dt_binary_list <- extract_case_status(dt_data, dt_query_ICD)
 dt_binary_ICD <- dt_binary_list$dt_data
 dt_query_ICD <- dt_binary_list$dt_query
@@ -450,7 +450,7 @@ dt_binary_classified <- merge(dt_binary_ICD, dt_classify)
 dt_query_OPCS4 <- munge_BRaVa_OPCS4_proposals()
 fwrite(dt_query_OPCS4, file='data/BRaVa_OPCS4_proposals.tsv', sep='\t', quote=TRUE)
 dt_query_OPCS4 <- fread('data/BRaVa_OPCS4_proposals.tsv')
-dt_data <- extract_ID_and_OPCS4_UKB()
+dt_data <- extract_ID_and_OPCS4_UKB('data/ukb10844_ukb50009_updateddiagnoses_14012022.csv.gz')
 
 dt_binary_procedures <- extract_procedure_case_status(dt_data, dt_query_OPCS4)
 ICD_and_procedures <- intersect(names(dt_binary_procedures)[-1], names(dt_binary_ICD)[-1])
@@ -485,7 +485,7 @@ fwrite(dt_counts_t, file="data/output/UKBB_case_counts_total_updated.tsv", sep="
 dt_counts <- merge(fread("data/output/UKBB_case_counts_updated.tsv"), fread("data/output/UKBB_case_counts_total_updated.tsv"))
 
 # Merge in the age, sex, and age*sex, age^2*sex covariates for the continuous and case control traits.
-dt_cov <- extract_covariates()
+dt_cov <- extract_covariates('data/ukb10844_ukb50009_updateddiagnoses_14012022.csv.gz')
 dt_binary_classified <- fread("/well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/BRaVa_phenotypes_with_superpopulation_labels_updated.tsv")
 dt_cts_classified <- fread("/well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/BRaVa_cts_phenotypes_with_superpopulation_labels_updated.tsv")
 
