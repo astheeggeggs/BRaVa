@@ -8,8 +8,10 @@ source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
 main <- function(args)
 {
 	folder_to_check <- args$folder
-	files_to_check <- grep("\\.gene\\.", dir(folder_to_check, full.names=TRUE), value=TRUE)
-	files_to_check <- setdiff(files_to_check, grep("cleaned", files_to_check, value=TRUE))
+	type <- args$type
+	files_to_check <- grep(paste0("\\.", type, "\\."), dir(folder_to_check, full.names=TRUE), value=TRUE)
+	files_to_check <- setdiff(files_to_check, grep("\\.cleaned\\.", files_to_check, value=TRUE))
+	cat(paste0("files to check:", paste0(files_to_check, collapse="\n"), "\n"))
 
 	for (f in files_to_check)
 	{
@@ -43,9 +45,9 @@ main <- function(args)
 			}
 		}
 
-        if (file_info$type != "gene") {
-            cat("This checking script is expecting gene level results\n")
-            stop(paste0(file_info$type, " is not 'gene'"))
+        if (file_info$type != type) {
+            cat(paste0("This checking script is expecting ", type, " level results\n"))
+            stop(paste0(file_info$type, " is not '", type, "'"))
         }
 
         cat("\nnaming convention checking complete!\n")
@@ -78,79 +80,127 @@ main <- function(args)
         cat(paste0(f, " ->\n ", new_f))
 
         # Now run all the tests on the proposed file names
-		exit_status <- system(paste0("Rscript ~/Repositories/BRaVa_curation/gene_results_file_checks.r --just_filename --file_paths ", new_f))
+		exit_status <- system(
+			paste0("Rscript ~/Repositories/BRaVa_curation/gene_results_file_checks.r",
+				" --just_filename",
+				" --file_paths ", new_f,
+				" --type ", type)
+			)
+		
 		if (exit_status == 0) {
 			cat("successful, rename\n")
 			file.rename(f, new_f)
 			cat("continue with further checks...\n")
-			dt <- fread(new_f)
-			for (n in names(renaming_header_list)) {
-				if (!(n %in% names(dt))) {
-					cat(paste("attempting to rename to", n,"\n"))
-					if (sum(renaming_header_list[[n]] %in% names(dt)) == 1) {
-						to_rename <- which(names(dt) %in% renaming_header_list[[n]])
-						cat(paste("renamed:", names(dt)[to_rename], "->", n, "\n"))
-						names(dt)[to_rename] <- n
-					} else {
-						cat(paste("cannot find the column to rename to", n, "\n"))
+
+			if (type == "gene") {
+				dt <- fread(new_f)
+				for (n in names(renaming_header_list)) {
+					if (!(n %in% names(dt))) {
+						cat(paste("attempting to rename to", n,"\n"))
+						if (sum(renaming_header_list[[n]] %in% names(dt)) == 1) {
+							to_rename <- which(names(dt) %in% renaming_header_list[[n]])
+							cat(paste("renamed:", names(dt)[to_rename], "->", n, "\n"))
+							names(dt)[to_rename] <- n
+						} else {
+							cat(paste("cannot find the column to rename to", n, "\n"))
+						}
+					}
+				}
+
+				for (n in names(renaming_group_list)) {
+					to_rename <- which(dt$Group %in% renaming_group_list[[n]])
+					if (length(to_rename) > 0) {
+						cat("Groups (annotation names) to be renamed...\n")
+						cat(paste0(dt$Group[to_rename][1], " -> ", n, "\n"))
+						dt$Group[to_rename] <- n
+					}
+				}
+
+				# Check to ensure that all of the gene names are ensembl IDs
+				if (all(grepl("ENSG", dt$Region))) {
+					cat("all region names contain ensembl gene IDs\n")
+					if (all(grepl("_", dt$Region))) {
+						cat("looks like the user has combined ensembl gene ID and genesymbol\n")
+						dt[, Region:=gsub(".*_(ENSG[0-9]*)$", "\\1", Region)]
+						dt[, Region:=gsub("^(ENSG[0-9]*)_.*", "\\1", Region)]
+					}
+				} else {
+					cat("attempting to resolve to ensembl gene ID\n")
+					dt_hgnc <- fread("230117_hgncid_ensembl.txt.gz", select = c("ensembl_gene_id", "hgnc_symbol"))
+					dt_hgnc[, Region:=hgnc_symbol]
+					dt_hgnc$Region <- ifelse(dt_hgnc$Region == "", dt_hgnc$ensembl_gene_id, dt_hgnc$Region)
+					dt_hgnc[, hgnc_symbol:=NULL]
+					setkey(dt_hgnc, "Region")
+					setkey(dt)
+					dt <- merge(dt, dt_hgnc, all.x=TRUE)
+					dt[, Region:=ensembl_gene_id]
+					dt <- dt %>% filter(Region != "")
+				}
+
+				# Remove all other columns
+				dt <- dt %>% select(intersect(names(dt), names(renaming_header_list)))
+				class <- ifelse(file_info$binary, "binary", "continuous")
+
+				if (any(!(default_gene_result_columns[[class]] %in% names(dt)))) {
+					cat("expected columns are missing!\n")
+					print(setdiff(default_gene_result_columns, names(dt)))
+					for (colname in setdiff(default_gene_result_columns[[class]], names(dt))) {
+						dt[[colname]] <- NA
+					}
+				} else {
+					cat("all required columns are present!\n")
+				}
+
+				if (all((unique(dt$Group) %in% correct_names) | is.na(unique(dt$Group)))) {
+					cat("all annotations have the correct names...\n")
+					out_f <- gsub(folder, paste0(args$out_folder, "/"), new_f)
+					if (args$write) {
+						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
+						cat("file written to:\n")
+						cat(paste0(out_f, "\n"))
 					}
 				}
 			}
 
-			for (n in names(renaming_group_list)) {
-				to_rename <- which(dt$Group %in% renaming_group_list[[n]])
-				if (length(to_rename) > 0) {
-					cat("Groups (annotation names) to be renamed...\n")
-					cat(paste0(dt$Group[to_rename][1], " -> ", n, "\n"))
-					dt$Group[to_rename] <- n
+			if (type == "variant") {
+				dt <- fread(new_f, nrows=1000)
+				rename <- FALSE
+				for (n in names(renaming_variant_header_list)) {
+					if (!(n %in% names(dt))) {
+						cat(paste("attempting to rename to", n,"\n"))
+						if (sum(renaming_header_list[[n]] %in% names(dt)) == 1) {
+							to_rename <- which(names(dt) %in% renaming_header_list[[n]])
+							cat(paste("renamed:", names(dt)[to_rename], "->", n, "\n"))
+							names(dt)[to_rename] <- n
+							rename <- TRUE
+						} else {
+							cat(paste("cannot find the column to rename to", n, "\n"))
+						}
+					}
 				}
-			}
 
-			# Check to ensure that all of the gene names are ensembl IDs
-			if (all(grepl("ENSG", dt$Region))) {
-				cat("all region names contain ensembl gene IDs\n")
-				if (all(grepl("_", dt$Region))) {
-					cat("looks like the user has combined ensembl gene ID and genesymbol\n")
-					dt[, Region:=gsub(".*_(ENSG[0-9]*)$", "\\1", Region)]
-					dt[, Region:=gsub("^(ENSG[0-9]*)_.*", "\\1", Region)]
-				}
-			} else {
-				cat("attempting to resolve to ensembl gene ID\n")
-				dt_hgnc <- fread("230117_hgncid_ensembl.txt.gz", select = c("ensembl_gene_id", "hgnc_symbol"))
-				dt_hgnc[, Region:=hgnc_symbol]
-				dt_hgnc$Region <- ifelse(dt_hgnc$Region == "", dt_hgnc$ensembl_gene_id, dt_hgnc$Region)
-				dt_hgnc[, hgnc_symbol:=NULL]
-				setkey(dt_hgnc, "Region")
-				setkey(dt)
-				dt <- merge(dt, dt_hgnc, all.x=TRUE)
-				dt[, Region:=ensembl_gene_id]
-				dt <- dt %>% filter(Region != "")
-			}
-
-			# Remove all other columns
-			dt <- dt %>% select(intersect(names(dt), names(renaming_header_list)))
-			type <- ifelse(file_info$binary, "binary", "continuous")
-
-			if (any(!(default_gene_result_columns[[type]] %in% names(dt)))) {
-				cat("expected columns are missing!\n")
-				print(setdiff(default_gene_result_columns, names(dt)))
-				for (colname in setdiff(default_gene_result_columns[[type]], names(dt))) {
-					dt[[colname]] <- NA
-				}
-			} else {
-				cat("all required columns are present!\n")
-			}
-
-			if (all((unique(dt$Group) %in% correct_names) | is.na(unique(dt$Group)))) {
-				cat("all annotations have the correct names...\n")
 				out_f <- gsub(folder, paste0(args$out_folder, "/"), new_f)
-				fwrite(dt, file=out_f, sep="\t", quote=FALSE)
-				cat("file written to:\n")
-				cat(paste0(out_f, "\n"))
+				if (args$write) {
+					if (rename) {
+						new_names <- names(dt)
+						dt <- fread(new_f)
+						names(dt) <- new_names
+						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
+						cat("file written to:\n")
+						cat(paste0(out_f, "\n"))
+					} else if (out_f != f) {
+						cat("just need to rename the file:\n")
+						cat(paste0(out_f, "\n"))
+						file.rename(f, out_f)
+					} else {
+						cat("nothing required, the file is ready to go:\n")
+						cat(paste0(out_f, "\n"))
+					}
+				}
 			}
 
 		} else {
-			stop("Error: file name is not compatible with the requested format")
+			warning("Error: file name is not compatible with the requested format")
 		}
 	}
 }
@@ -161,6 +211,9 @@ parser$add_argument("--folder", default=NULL, required=TRUE,
     help="folder to check")
 parser$add_argument("--out_folder", default=NULL, required=TRUE,
     help="folder to export results to")
+parser$add_argument("--write", default=FALSE, action="store_true",
+    help="write the resultant file?")
+parser$add_argument("--type", default="gene", required=FALSE)
 args <- parser$parse_args()
 
 main(args)

@@ -21,11 +21,10 @@ main <- function(args)
     folder <- gsub("(.*\\/)(.*)", "\\1", files[1])
     file <- gsub("(.*\\/)(.*)", "\\2", files[1])
     file_info_template <- extract_file_info(file)
-    print(args)
+    cat(paste(paste(names(args), args, sep=": "), collapse="\n"), "\n")
 
     for (f in files)
     {
-        print(f)
         # Throw an error if the file is not there
         if (!file.exists(f)) {
             stop(paste("File:", file, "does not exist."))
@@ -35,7 +34,7 @@ main <- function(args)
         folder <- gsub("(.*\\/)(.*)", "\\1", f)
         file <- gsub("(.*\\/)(.*)", "\\2", f)
         file_info <- extract_file_info(file)
-        checks(file_info, file_info_template)
+        checks(file_info, file_info_template, args$no_sex_check)
 
         # Throw an error if the case count is too low
         if (file_info$binary) {
@@ -94,7 +93,6 @@ main <- function(args)
     }
 
     dt_meta <- rbindlist(dt_meta)
-    print(dt_meta)
 
     dt_cauchy <- list()
     dt_n_eff <- unique(dt %>% select(Region, dataset, ancestry, N_eff))
@@ -140,6 +138,8 @@ parser$add_argument("--case_control_threshold", default=100, required=FALSE,
     help=paste0("Case/control count threshold for inclusion of the data into the meta-analysis [default=100]"))
 parser$add_argument("--out", default="meta_analysis", required=FALSE,
     help="Output filepath")
+parser$add_argument("--no_sex_check", default=FALSE, action='store_true',
+    help="Perform sex check of samples used for the trait when running meta-analysis?")
 args <- parser$parse_args()
 
 main(args)

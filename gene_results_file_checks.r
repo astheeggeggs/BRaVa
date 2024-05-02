@@ -51,9 +51,9 @@ main <- function(args)
             stop(paste0(file_info$sex, " is not in the accepted collection of sex labels"))
         }
 
-        if (file_info$type != "gene") {
-            cat("This checking script is expecting gene level results\n")
-            stop(paste0(file_info$type, " is not 'gene'"))
+        if (file_info$type != args$type) {
+            cat(paste0("This checking script is expecting ", args$type, " level results\n"))
+            stop(paste0(file_info$type, " is not '", args$type, "'"))
         }
 
         cat("naming convention checking complete!\n")
@@ -71,72 +71,92 @@ main <- function(args)
         dt_header <- fread(cmd = ifelse(file_info$gz,
             paste0("gzcat ", folder, file),
             paste0("cat ", folder, file)), nrows=0)
-        gene_results_file_columns <- names(dt_header)
 
-        if (length(gene_results_file_columns) > length(unique(gene_results_file_columns))) {
-            stop("multiple columns with the same name are present within the gene resultsfile")
+        results_file_columns <- names(dt_header)
+
+        if (length(results_file_columns) > length(unique(results_file_columns))) {
+            stop(paste0(
+                "multiple columns with the same name are present within the ",
+                args$type, " results file"))
         }
 
-        # Now, ensure that all of the required columns are present
-        if (all(default_gene_result_columns$minimal %in% gene_results_file_columns))
+        if (args$type == "variant")
         {
-            cat("\nall required gene results columns are present\n")
-            if (file_info$binary) {
-                if (all(default_gene_result_columns$binary %in% gene_results_file_columns)) {
-                    cat("allele counts are also present\n")
-                }
-            }
-            if (!file_info$binary) {
-                if (all(default_gene_result_columns$continuous %in% gene_results_file_columns)) {
-                    cat("allele counts are also present\n")
-                }
-            }
-
-        } else {
-            cat("\na collection of columns are missing, perhaps there is a naming issue?\n")
-            cat(paste0("columns missing:\n",
-                setdiff(minimal_gene_result_columns, gene_results_file_columns), collapse="\n"))
-            stop("required columns missing from the results file")
-        }
-
-        # Determine that all requested annotations are present
-        dt <- fread(cmd = ifelse(file_info$gz,
-            paste0("gzcat ", folder, file),
-            paste0("cat ", folder, file)))
-
-        annotations <- unique(dt$Group)
-        if (all(correct_names %in% annotations)) {
-            cat("\nall requested annotations are present\n")
-        } else {
-            cat("a subset of the requested annotations are not present\n")
-            cat("\nrequested annotations:\n", paste(minimal_group_list, collapse="\n "),"\n")
-            cat("\nannotations present:\n", paste(annotations, collapse="\n "), "\n")
-            cat("\nannotations missing:\n",
-                paste0(setdiff(minimal_group_list, annotations), collapse="\n "), "\n")
-            cat("\nthis could be due to a naming difference: please edit the naming in your results file\n")
-            stop("a subset of the requested annotations are not present\n")
-        }
-
-        max_MAFs <- unique(dt$max_MAF)
-
-        if (all(max_MAFs %in% requested_max_MAFs)) {
-            cat("\nall requested max_MAF thresholds are present")
-        } else {
-            if (length(max_MAFs > 0) & 
-                (max(max_MAFs, na.rm=TRUE) < max(requested_max_MAFs))
-            ) {
-                stop("Not all max MAF thresholds are present, a higher max_MAF threshold was not run")
+            # Now, ensure that all of the required columns are present
+            if (all(default_variant_result_columns[[ifelse(file_info$binary, "binary", "continuous")]] %in% results_file_columns))
+            {
+                cat("\nall required gene results columns are present\n")
             } else {
-                cat(paste0("\nWarning: not all max_MAF thresholds were run; ",
-                    "this is likely because this subset of the dataset you are looking at is quite small\n"))
+                cat("\na collection of columns are missing, perhaps there is a naming issue?\n")
+                cat(paste0("columns missing:\n",
+                    setdiff(default_variant_result_columns[[ifelse(file_info$binary, "binary", "continuous")]], results_file_columns), collapse="\n"))
+                stop("required columns missing from the results file")
             }
         }
 
-        # Determine that the format of the gene names is correct
-        if (all(grepl("ENSG[0-9]+", dt$Region))) {
-            cat("\nall Region names contain ensembl gene IDs\n")
-        } else {
-            stop("please use ensembl gene IDs only for the region labels")
+        if (args$type == "gene") 
+        {
+            # Now, ensure that all of the required columns are present
+            if (all(default_gene_result_columns$minimal %in% results_file_columns))
+            {
+                cat("\nall required gene results columns are present\n")
+                if (file_info$binary) {
+                    if (all(default_gene_result_columns$binary %in% results_file_columns)) {
+                        cat("allele counts are also present\n")
+                    }
+                }
+                if (!file_info$binary) {
+                    if (all(default_gene_result_columns$continuous %in% results_file_columns)) {
+                        cat("allele counts are also present\n")
+                    }
+                }
+
+            } else {
+                cat("\na collection of columns are missing, perhaps there is a naming issue?\n")
+                cat(paste0("columns missing:\n",
+                    setdiff(minimal_gene_result_columns, results_file_columns), collapse="\n"))
+                stop("required columns missing from the results file")
+            }
+
+            # Determine that all requested annotations are present
+            dt <- fread(cmd = ifelse(file_info$gz,
+                paste0("gzcat ", folder, file),
+                paste0("cat ", folder, file)))
+
+            annotations <- unique(dt$Group)
+            if (all(correct_names %in% annotations)) {
+                cat("\nall requested annotations are present\n")
+            } else {
+                cat("a subset of the requested annotations are not present\n")
+                cat("\nrequested annotations:\n", paste(minimal_group_list, collapse="\n "),"\n")
+                cat("\nannotations present:\n", paste(annotations, collapse="\n "), "\n")
+                cat("\nannotations missing:\n",
+                    paste0(setdiff(minimal_group_list, annotations), collapse="\n "), "\n")
+                cat("\nthis could be due to a naming difference: please edit the naming in your results file\n")
+                stop("a subset of the requested annotations are not present\n")
+            }
+
+            max_MAFs <- unique(dt$max_MAF)
+
+            if (all(max_MAFs %in% requested_max_MAFs)) {
+                cat("\nall requested max_MAF thresholds are present")
+            } else {
+                if (length(max_MAFs > 0) & 
+                    (max(max_MAFs, na.rm=TRUE) < max(requested_max_MAFs))
+                ) {
+                    stop("Not all max MAF thresholds are present, a higher max_MAF threshold was not run")
+                } else {
+                    cat(paste0("\nWarning: not all max_MAF thresholds were run; ",
+                        "this is likely because this subset of the dataset you are looking at is quite small\n"))
+                }
+            }
+
+            # Determine that the format of the gene names is correct
+            if (all(grepl("ENSG[0-9]+", dt$Region))) {
+                cat("\nall Region names contain ensembl gene IDs\n")
+            } else {
+                stop("please use ensembl gene IDs only for the region labels")
+            }
         }
         
         cat(paste0("file: ", f,
@@ -152,6 +172,7 @@ parser$add_argument("--file_paths", default=NULL, required=TRUE,
     help="Comma separated file paths for gene-based results files for meta-analysis")
 parser$add_argument("--just_filename", default=FALSE, action="store_true",
     help="Comma separated file paths for gene-based results files for meta-analysis")
+parser$add_argument("--type", default="gene", required=FALSE)
 args <- parser$parse_args()
 
 main(args)

@@ -17,7 +17,7 @@ main <- function(args)
     print(files)
     print(args)
 
-    pdf(file=args$out, width=8, height=4)
+    pdf(file=args$out, width=8, height=8)
     for (file in files) {
         phe <- gsub(".*/(.*)_meta.*", "\\1", file)
         phe_plot <- gsub("_", " ", gsub("_$", "", str_trim(gsub("[[:space:]_]+", "\\_", phe))))

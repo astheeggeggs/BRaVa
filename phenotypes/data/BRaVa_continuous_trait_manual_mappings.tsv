@@ -1,4 +1,4 @@
-Phenotype	PhenotypeID	UKB_code
+phenotype	phenotypeID	UKB_code
 Total cholesterol	TChol	30690
 LDLC	LDLC	30780
 HDLC	HDLC	30760

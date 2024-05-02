@@ -1,9 +1,19 @@
-# install.packages("googlesheets4")
 library(data.table)
 library(dplyr)
 library(ggplot2)
 library(googlesheets4)
 library(stringr)
+
+extract_BRaVa_pilot_phenotypes <- function(pilot_only=TRUE) {
+	dt <- read_sheet("https://docs.google.com/spreadsheets/d/1YqdSyxf2OyoIYvLnDVj7NmbpebtppsgyJSq18gkVAWI/edit#gid=1716081249",
+		sheet="Sequenced_Sample_Sizes", skip=5)
+	dt_pilot <- dt %>% select("Phenotype ID", "...113")
+	names(dt_pilot) <- c("phenotypeID", "include")
+	dt_pilot <- dt_pilot %>% mutate(include = as.logical(include))
+	if (pilot_only) { dt_pilot <- dt_pilot %>% filter(include) }
+	dt_pilot <- dt_pilot %>% filter(phenotypeID != "")
+	return(dt_pilot$phenotypeID)
+}
 
 munge_BRaVa_ICD_proposals <- function() {
 	# Download and extract the case and control ICD9/10 codes from the BRaVa nominate phenotypes file
@@ -231,7 +241,9 @@ extract_continuous_trait_counts <- function(
 	biomarker_file = "/well/lindgren/UKBIOBANK/DATA/Biomarker_data/ukb27722.csv",
 	manual_curation_mapping = "data/BRaVa_continuous_trait_manual_mappings.tsv",
 	superpopulation_labels = "/well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/superpopulation_labels.tsv",
-	write_continuous_data_file = TRUE
+	write_continuous_data_file = TRUE,
+	counts_out = "data/output",
+	file_out = "/well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/BRaVa_cts_phenotypes_with_superpopulation_labels_updated.tsv.gz"
 )
 {
 	get_cols <- function(codes, dt, na.filter=FALSE)
@@ -270,9 +282,9 @@ extract_continuous_trait_counts <- function(
 	dt_biomarker <- fread(biomarker_file, select=select_cols)
 
 	# Get population specific counts
-
 	# Merge with 1000G labels - this file is created using 05_estimate_superpopulation.r in the QC folder.
 	dt_classify <- fread(superpopulation_labels)
+	names(dt_classify) <- gsub("^PC([0-9]+)$", "kg_pc\\1", names(dt_classify))
 	dt_classify[, eid:=sample.ID]
 	dt_classify[, sample.ID:=NULL]
 	setkey(dt_classify, "eid")
@@ -281,38 +293,47 @@ extract_continuous_trait_counts <- function(
 	
 	dt_cts_classified <- dt_cts_classified %>% mutate(WHR = (`48-0.0` / `49-0.0`))
 	model <- lm(WHR ~ `21001-0.0`, data=dt_cts_classified)
-	WHRBMI <- data.table(eid = dt_cts_classified$eid[as.integer(names(resid(model)))], WHRBMI = resid(model))
+	WHRBMI <- data.table(
+		eid = dt_cts_classified$eid[as.integer(names(resid(model)))], WHRBMI = resid(model))
 	setkey(WHRBMI, "eid")
 	dt_cts_classified <- merge(dt_cts_classified, WHRBMI, all=TRUE)
 	
-	if (write_continuous_data_file) {
-		# Map the names back
-		tmp <- names(dt_cts_classified)
-		tmp <- gsub("-.*", "", tmp)
-		for (i in 1:length(tmp)) {
-			if (tmp[i] %in% dt_manual$UKB_code) {
-				tmp[i] <- dt_manual$PhenotypeID[which(dt_manual$UKB_code == tmp[i])]
-			}
+	# Map the names back
+	tmp <- names(dt_cts_classified)
+	tmp <- gsub("-.*", "", tmp)
+	new_phenocol <- c()
+	for (i in 1:length(tmp)) {
+		if (tmp[i] %in% dt_manual$UKB_code) {
+			tmp[i] <- dt_manual$phenotypeID[which(dt_manual$UKB_code == tmp[i])]
+			new_phenocol <- c(new_phenocol, tmp[i])
 		}
-		names(dt_cts_classified) <- tmp
-		fwrite(dt_cts_classified, file="/well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/BRaVa_cts_phenotypes_with_superpopulation_labels_updated.tsv", sep="\t")
+	}
+	names(dt_cts_classified) <- tmp
+
+	if (write_continuous_data_file) {
+		fwrite(dt_cts_classified, file=file_out, sep="\t")
 	}
 
 	sum_not_is.na <- function(col) { sum(!is.na(col)) }
 
 	# Split by 1000G label and count the number of non-NA entries
-	dt_counts <- dt_cts_classified %>% group_by(classification_strict) %>% summarise(across(c(pheno_cols, biomarker_cols, "WHRBMI"), sum_not_is.na))
-	dt_counts_t <- data.table::transpose(dt_counts, keep.names="phenotype", make.names="classification_strict") %>% mutate(phenotype = gsub("-.*", "", phenotype)) %>% rename(UKB_code = phenotype)
+	dt_counts <- dt_cts_classified %>% 
+		group_by(classification_strict) %>% 
+		summarise(across(c(new_phenocol, "WHRBMI"), sum_not_is.na))
+	dt_counts_t <- data.table(data.table::transpose(
+		dt_counts, keep.names="phenotypeID", make.names="classification_strict"))
+	setkey(dt_counts_t, "phenotypeID")
+	setkey(dt_manual, "phenotypeID")
 	dt_counts_t <- merge(dt_manual, dt_counts_t, all.y=TRUE)
+	dt_counts_t <- dt_counts_t %>% select(-phenotype)
+	fwrite(dt_counts_t, file=paste0(counts_out, "/UKBB_cts_non_missing_counts.tsv.gz"), sep="\t")
 
-	fwrite(dt_counts_t, file="data/output/UKBB_cts_non_missing_counts.tsv", sep="\t")
-
-	dt_counts <- dt_cts_classified %>% summarise(across(c(pheno_cols, biomarker_cols, "WHRBMI"), sum_not_is.na))
-	dt_counts_t <- data.table::transpose(dt_counts, keep.names="phenotype") %>% mutate(phenotype = gsub("-.*", "", phenotype)) %>% rename(UKB_code = phenotype)
+	dt_counts <- dt_cts_classified %>% summarise(across(c(new_phenocol, "WHRBMI"), sum_not_is.na))
+	dt_counts_t <- data.table::transpose(dt_counts, keep.names="phenotypeID")
 	dt_counts_t <- merge(dt_manual, dt_counts_t, all.y=TRUE)
+	dt_counts_t <- dt_counts_t %>% select(-phenotype)
 
-	fwrite(dt_counts_t, file="data/output/UKBB_cts_non_missing_counts_total.tsv", sep="\t")
-
+	fwrite(dt_counts_t, file=paste0(counts_out, "/UKBB_cts_non_missing_counts_total.tsv.gz"), sep="\t")
 }
 
 munge_BRaVa_OPCS4_proposals <- function() {
@@ -415,14 +436,14 @@ extract_covariates <- function(
 	dt <- fread(phenotype_file, na.strings=NULL, nrow=1)
 
 	# Extract the relevant columns for each of the encodings
-	covs <- c("22001", "21022")
+	covs <- c("22001", "21022", "22009")
 	cols <-  get_cols(covs, dt)
 	select_cols <- rep("character", (length(cols) + 1))
 	names(select_cols) <- c("eid", cols)
 
 	# Read in the entire file ensuring these columns are encoded as characters to avoid NA weirdness.
 	dt <- fread(phenotype_file, na.strings=NULL, select=select_cols)
-	names(dt) <- c("eid", "sex", "age")
+	names(dt) <- c("eid", "sex", "age", paste0("ukbb_pc", seq(1, sum(grepl("^22009-", names(dt))))))
 	return(dt)
 }
 

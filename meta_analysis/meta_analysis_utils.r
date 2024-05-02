@@ -25,6 +25,33 @@ renaming_header_list <- list(
 	`Number_ultra_rare` = c("ultrarare_var_count")
 )
 
+renaming_variant_header_list <- list(
+	`CHR` = c("chr"),
+	`POS` = c("pos"),
+	`MarkerID` = c("varID"),
+	`Allele1` = c("A1"),
+	`Allele2` = c("A2"),
+	`AC_Allele2` = c("AC_A2"),
+	`AF_Allele2` = c("AF_A2"),
+	`MissingRate` = c("missing"),
+	`BETA` = c("beta"),
+	`SE` = c("se"),
+	`Tstat` = c("t_stat"),
+	`var` = c("Var"),
+	`p.value` = c("P_value"),
+	`p.value.NA` = c("P_value.NA"),
+	`Is.SPA` = c("SPA"),
+	`AF_case` = c("case_AF"),
+	`AF_ctrl` = c("ctrl_AF"),
+	`N_case` = c("n_case"),
+	`N_ctrl` = c("n_control", "n_ctrl"),
+	`N_case_hom` = c("n_case_hom"),
+	`N_case_het` = c("n_case_het"),
+	`N_ctrl_hom` = c("n_control_hom"),
+	`N_ctrl_het` = c("n_control_hom"),
+	`N` = c("n")
+)
+
 # Expected annotation names
 correct_names <- c("pLoF",
 	"damaging_missense_or_protein_altering",
@@ -49,7 +76,21 @@ default_gene_result_columns <- list(
 	minimal = c(
 		"Region", "Group", "max_MAF", "Pvalue",
 		"Pvalue_Burden", "Pvalue_SKAT", "BETA_Burden", "SE_Burden")
-)   
+)
+
+# Expected columns of variant results files
+default_variant_result_columns <- list(
+	binary = c(
+		"CHR", "POS", "MarkerID", "Allele1", "Allele2", "AC_Allele2",
+		"AF_Allele2", "MissingRate", "BETA", "SE", "Tstat", "var",
+		"p.value", "p.value.NA", "Is.SPA", "AF_case", "AF_ctrl",
+		"N_case", "N_ctrl", "N_case_hom", "N_case_het",
+		"N_ctrl_hom", "N_ctrl_het"),
+	continuous = c(
+		"CHR", "POS", "MarkerID", "Allele1", "Allele2", "AC_Allele2",
+		"AF_Allele2", "MissingRate", "BETA", "SE", "Tstat", "var",
+		"p.value", "N")
+)
 
 renaming_plot_group_list <- list(
     damaging_missense_or_protein_altering = "Damaging missense or PA",
@@ -108,7 +149,7 @@ file_check_information <- list(
 		`CRVO` = c("CRVO", "Central retinal vein occlusion", "Central_retinal_vein_occlusion"),
 		`CervCanc` = c("CervCanc", "Cervical cancer", "Cervical_cancer"),
 		`CML` = c("CML", "Chronic myeloid leukemia", "Chronic_myeloid_leukemia"),
-		`COPD` = c("COPD", "Chronic obstructive pulmonary disease (COPD)", "Chronic_obstructive_pulmonary_disease_(COPD)", "Chronic_obstructive_pulmonary_disease_COPD"),
+		`COPD` = c("COPD", "Chronic obstructive pulmonary disease (COPD)", "Chronic_obstructive_pulmonary_disease_(COPD)", "Chronic_obstructive_pulmonary_disease_COPD", "Chronic_obstructive_pulmonary_disease"),
 		`CRF` = c("CRF", "Chronic Renal Failure", "Chronic_Renal_Failure"),
 		`CoffSirSynd` = c("CoffSirSynd", "Coffin-Sirus Syndrome", "Coffin-Sirus_Syndrome"),
 		`ColonRectCanc` = c("ColonRectCanc", "Colon and rectum cancer", "Colon_and_rectum_cancer"),
@@ -127,7 +168,7 @@ file_check_information <- list(
 		`Gout` = c("Gout"),
 		`GravesDis` = c("GravesDis", "Graves disease ", "Graves_disease_"),
 		`HemoChromo` = c("HemoChromo", "Haemochromatosis"),
-		`HF` = c("HF", "Heart Failure (HF)", "Heart_Failure_(HF)", "Heart_Failure_HF"),
+		`HF` = c("HF", "Heart Failure (HF)", "Heart_Failure_(HF)", "Heart_Failure_HF", "Heart_Failure"),
 		`HepCarcin` = c("HepCarcin", "Hepatocellular Carcinoma", "Hepatocellular_Carcinoma"),
 		`HTN` = c("HTN", "Hypertension"),
 		`HHD` = c("HHD", "Hypertensive heart disease", "Hypertensive_heart_disease"),
@@ -192,12 +233,12 @@ file_check_information <- list(
 		`Urolith` = c("Urolith", "Urolithiasis"),
 		`UterCanc` = c("UterCanc", "Uterine cancer (UtC)", "Uterine_cancer_(UtC)"),
 		`VaricVeins` = c("VaricVeins", "Varicose Veins", "Varicose_Veins"),
-		`VTE` = c("VTE", "Venous Thromboembolism (VTE)", "Venous_Thromboembolism_(VTE)", "Venous_Thromboembolism_VTE"),
+		`VTE` = c("VTE", "Venous Thromboembolism (VTE)", "Venous_Thromboembolism_(VTE)", "Venous_Thromboembolism_VTE", "Venous_Thromboembolism"),
 		`ALT` = c("ALT", "Alanine transaminase", "Alanine_transaminase"),
-		`AlcCons` = c("AlcCons", "Alcohol consumption (drinks per week)", "Alcohol_consumption_(drinks_per_week)", "Alcohol"),
-		`AST` = c("AST", "Aspartate aminotransferase (AST)", "Aspartate_aminotransferase_(AST)"),
+		`AlcCons` = c("AlcCons", "Alcohol consumption (drinks per week)", "Alcohol_consumption_(drinks_per_week)", "Alcohol", "Alcohol_consumption_drinks_per_week"),
+		`AST` = c("AST", "Aspartate aminotransferase (AST)", "Aspartate_aminotransferase_(AST)", "Aspartate_aminotransferase"),
 		`BMI` = c("BMI"),
-		`CRP` = c("CRP", "C-reactive protein (CRP)", "C-reactive_protein_(CRP)"),
+		`CRP` = c("CRP", "C-reactive protein (CRP)", "C-reactive_protein_(CRP)", "C_reactive_protein"),
 		`CACS` = c("CACS", "Coronary artery calcium score", "Coronary_artery_calcium_score"),
 		`CK` = c("CK", "Creatine kinase (CK)", "Creatine_kinase_(CK)"),
 		`HDLC` = c("HDLC"),
@@ -208,7 +249,7 @@ file_check_information <- list(
 		`WHRBMI` = c("WHRBMI", "WHR adjusted for BMI", "WHR_adjusted_for_BMI"),
 		`LVH` = c("LVH", "Left Ventricular Hypertrophy", "Left_Ventricular_Hypertrophy"),
 		`Append` = c("Append", "Appendectomy"),
-		`HipRep` = c("HipRep", "Hip replacement (operation)", "Hip_replacement_(operation)"),
+		`HipRep` = c("HipRep", "Hip replacement (operation)", "Hip_replacement_(operation)", "Hip_replacement"),
 		`CogAbil` = c("CogAbil", "Cognitive ability at different ages", "Cognitive_ability_at_different_ages"),
 		`EduAtt` = c("EduAtt", "Educational attainment", "Educational_attainment"),
 		`PsySymp` = c("PsySymp", "Psychotic symptoms", "Psychotic_symptoms"),
@@ -233,6 +274,49 @@ file_check_information <- list(
 		`variant` = c("Variant", "var", "variant")
 	)
 )
+
+determine_binary_filename <- function(dataset, last_name, analysis_name, phenotype, sex,
+    ancestry, n_cases, n_controls, type, date,
+    method="SAIGE", freeze_number="JULY23Freeze") {
+    # Format
+    # [dataset].[last_name].[analysis_name].[phenotype].[freeze_number].[sex].[ancestry].[n_cases].[n_controls].[SAIGE].{gene,variant}.[YYYYMMDD].txt.gz
+    return(paste(
+        dataset,
+        last_name,
+        analysis_name,
+        gsub("\\.", "_", phenotype),
+        freeze_number,
+        sex,
+        ancestry,
+        n_cases,
+        n_controls,
+        method,
+        type,
+        date,
+        "txt.gz",
+        sep="."))
+}
+
+determine_cts_filename <- function(dataset, last_name, analysis_name, phenotype, sex,
+    ancestry, n, type, date,
+    method="SAIGE", freeze_number="JULY23Freeze") {
+    # Format
+    # [dataset].[last_name].[analysis_name].[phenotype].[freeze_number].[sex].[ancestry].[n].[SAIGE].{gene,variant}.[YYYYMMDD].txt.gz
+    return(paste(
+        dataset,
+        last_name,
+        analysis_name,
+        gsub("\\.", "_", phenotype),
+        freeze_number,
+        sex,
+        ancestry,
+        n,
+        method,
+        type,
+        date,
+        "txt.gz",
+        sep="."))
+}
 
 search_for_files <- function(file)
 {
@@ -262,21 +346,26 @@ search_for_files <- function(file)
     return(list(gene_file=gene_file, variant_file=variant_file, gz=gz))
 }
 
-checks <- function(file_info, file_info_template, datasets) {
+checks <- function(file_info, file_info_template, no_sex_check=FALSE)
+{
+	sex_out <- ifelse(no_sex_check, warning, stop)
+	
     if (file_info$phenotype != file_info_template$phenotype) {
-        print(file_info)
-        stop("phenotype does not match - check files or rename")
+    	cat(paste(paste(names(file_info), file_info, sep=": "), collapse="\n"), "\n")
+        stop(paste0("phenotype ", file_info$phenotype, " does not match '",
+        	file_info_template$phenotype, "' - check files or rename"))
     }
     if (file_info$sex != file_info_template$sex) {
-        print(file_info)
-        stop("meta-analysis of different sex - check files")
+        cat(paste(paste(names(file_info), file_info, sep=": "), collapse="\n"), "\n")
+        sex_out(paste0("sex ", file_info$sex, " does not match '",
+        	file_info_template$sex, "' - check files or rename"))
     }
     if (file_info$type != file_info_template$type) {
-        print(file_info)
+        cat(paste(paste(names(file_info), file_info, sep=": "), collapse="\n"), "\n")
         stop("attempting to meta-analyse gene based results with variant results - check files")
     }
     if (file_info$binary != file_info_template$binary) {
-        print(file_info)
+        cat(paste(paste(names(file_info), file_info, sep=": "), collapse="\n"), "\n")
         stop("attempting to analyse binary phenotype with a continuous phenotype")
     }
 }
@@ -517,7 +606,7 @@ create_gene_data_table <- function(group_files_lines)
 }
 
 extract_group_file_information <- function(regexp_group_files) {
-	# Extact the directory portion and the regular expression within the folder
+	# Extract the directory portion and the regular expression within the folder
 	regexp_group_files <- strsplit(regexp_group_files, "/")[[1]]
 	if (length(regexp_group_files) > 1) {
 		directory <- paste(regexp_group_files[1:(length(regexp_group_files)-1)], collapse="/")

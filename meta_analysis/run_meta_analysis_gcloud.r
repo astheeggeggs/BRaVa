@@ -1,43 +1,47 @@
 #!/bin/Rscript
+library(data.table)
+library(dplyr)
 
 # Names of the phenotypes to run
-phenotypes <- c("Coronary_artery_disease")
-biobanks <- c("uk-biobank", "genes-and-health", "mgbb", "gel", "pmbb", "bbj", "all-of-us")
-system("mkdir -p ../data/meta_analysis/gcloud")
-data_dir <- "../data/meta_analysis/gcloud"
-out_meta_results_dir <- "../data/meta_analysis/gcloud/meta_results"
+data_dir <- "~/Repositories/BRaVa_curation/data/meta_analysis/gcloud"
+n_cases <- 100
+out_meta_results_dir <- paste0("~/Repositories/BRaVa_curation/data/meta_analysis/meta_results/n_cases_", n_cases)
 system(paste("mkdir -p", out_meta_results_dir))
-download <- FALSE
+source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
+source("~/Repositories/BRaVa_curation/phenotypes/BRaVa_phenotypes_utils.r")
 
-for (phenotype in phenotypes)
+# Assumes that we have the files locally within a file structure as defined in the munging scripts
+# First, let's determine the collection of phenotypes that we are testing and the 
+# collection of (population, phenotype) pairs for that biobank to include in the meta-analysis
+
+biobanks <- dir(data_dir)
+results_dt_list <- list()
+
+for (biobank in biobanks)
 {
-	if (download) {
-		for (biobank in biobanks) {
-			# Download the required data for the meta-analysis
-			system(paste0(
-				"gsutil cp gs://brava-meta-upload-", biobank, "/*", phenotype, "* ",
-				data_dir, "/")
-			)
-			system(paste0(
-				"gsutil cp gs://brava-meta-upload-", biobank, "/pilot/*", phenotype, "* ",
-				data_dir, "/")
-			)
-		}
-	}
+	biobank_results_files <- dir(paste0(data_dir, "/", biobank, "/cleaned/gene"))
+	biobank_results_files_full <- dir(paste0(data_dir, "/", biobank, "/cleaned/gene"), full.names=TRUE)
+	results <- lapply(biobank_results_files, extract_file_info)
+	results_dt_list[[biobank]] <- data.table(filename = biobank_results_files_full, phenotypeID = sapply(results, `[[`, 4), pop = sapply(results, `[[`, 7))
+}
 
-	system("Rscript munge_results_files_Group_names.r")
+results_dt <- rbindlist(results_dt_list)
+pilot_phenotypes <- extract_BRaVa_pilot_phenotypes()
+phenotypeIDs <- intersect(pilot_phenotypes, unique(results_dt$phenotypeID))
 
-	files <- grep(phenotype, dir(data_dir, full.names=TRUE), value=TRUE)
-	files_gene <- paste(grep("gene\\..*cleaned.*", files, value=TRUE), collapse=",")
-	print(strsplit(files_gene, split=",")[[1]])
+for (phe in phenotypeIDs)
+{
+	files_gene <- (results_dt %>% filter(phenotypeID == phe))$filename
+	files_gene <- paste(files_gene, collapse=",")
+	cat(paste0("carrying out meta-analysis of ", phe, "\n"))
 	system(paste(
-		"Rscript meta_analysis.r --file_paths",
-		files_gene, "--out",
-		paste0(out_meta_results_dir, "/n_cases_100/", phenotype, "_gene_meta_analysis_100_cutoff.tsv.gz"))
+		"Rscript meta_analysis.r",
+		"--file_paths", files_gene,
+		"--file_paths", files_gene,
+		"--no_sex_check ",
+		"--out", paste0(
+			out_meta_results_dir, "/", phe, "_gene_meta_analysis_", n_cases, "_cutoff.tsv.gz")
+		)
 	)
-	system(paste(
-		"Rscript meta_analysis.r --file_paths",
-		files_gene, "--case_control_threshold 1000", "--out",
-		paste0(out_meta_results_dir, "/n_cases_1000/", phenotype, "_gene_meta_analysis_1000_cutoff.tsv.gz"))
-	)
+	cat(paste0("meta-analysis of ", phe, " completed\n\n"))
 }
