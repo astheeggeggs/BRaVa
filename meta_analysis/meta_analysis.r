@@ -122,7 +122,7 @@ main <- function(args)
     dt_meta_cauchy <- rbindlist(dt_meta_cauchy)
     dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"))
     fwrite(dt_meta, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
-
+ 
     # Finally, carry out heterogeneity test
     dt_het <- run_heterogeneity(
         dt %>% group_by(Region, Group, max_MAF),

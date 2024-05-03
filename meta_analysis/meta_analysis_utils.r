@@ -89,7 +89,10 @@ default_variant_result_columns <- list(
 	continuous = c(
 		"CHR", "POS", "MarkerID", "Allele1", "Allele2", "AC_Allele2",
 		"AF_Allele2", "MissingRate", "BETA", "SE", "Tstat", "var",
-		"p.value", "N")
+		"p.value", "N"),
+	minimal = c(
+		"CHR", "POS", "MarkerID", "Allele1", "Allele2", "BETA", "SE",
+		"p.value")
 )
 
 renaming_plot_group_list <- list(

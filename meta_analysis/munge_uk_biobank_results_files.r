@@ -15,8 +15,8 @@ date <- "20240110"
 method <- "SAIGE"
 
 dx_data_dir <- "brava/outputs/step2/sept2023/"
-data_dir <- paste0("../data/meta_analysis/gcloud/", biobank, "/raw")
-out_data_dir <- paste0("../data/meta_analysis/gcloud/", biobank, "/cleaned")
+data_dir <- paste0("~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/", biobank, "/raw")
+out_data_dir <- paste0("~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/", biobank, "/cleaned")
 system(paste0("mkdir -p ", data_dir, "/gene/sept2023/combined"))
 system(paste0("mkdir -p ", data_dir, "/variant/sept2023/combined"))
 system(paste0("mkdir -p ", out_data_dir, "/gene"))
@@ -39,8 +39,8 @@ if (download) {
 }
 
 raw_output_folder <- paste0(data_dir, "/gene/sept2023")
-files <- grep(".gz$", dir(raw_output_folder, full.names=TRUE), value=TRUE)
-phenotypes <- unique(gsub(".*chr[0-9X]+_(split_[0-9]+_)*(.*)_(AFR|AMR|EAS|EUR|SAS).*", "\\2", files))
+gene_files <- grep(".gz$", dir(raw_output_folder, full.names=TRUE), value=TRUE)
+phenotypes <- unique(gsub(".*chr[0-9X]+_(split_[0-9]+_)*(.*)_(AFR|AMR|EAS|EUR|SAS).*", "\\2", gene_files))
 
 # Extract additional information for file naming
 # (we also require the variant files to obtain the counts for the file names, 
@@ -48,15 +48,18 @@ phenotypes <- unique(gsub(".*chr[0-9X]+_(split_[0-9]+_)*(.*)_(AFR|AMR|EAS|EUR|SA
 # of case and controls)
 
 raw_output_variant_folder <- paste0(data_dir, "/variant/sept2023")
-variant_files <- dir(raw_output_variant_folder, full.names=TRUE)
+variant_files <- grep(".gz$", dir(raw_output_variant_folder, full.names=TRUE), value=TRUE)
 phenotype_info <- list()
 
+files <- list(gene=gene_files, variant=variant_files)
+
 for (phenotype in phenotypes) {
+    cat(paste0(phenotype, ": "))
     subfiles <- grep(phenotype, variant_files, value=TRUE)
     pops <- unique(gsub(".*chr[0-9X]+_(split_[0-9]+_)*(.*)_(AFR|AMR|EAS|EUR|SAS).*", "\\3", subfiles))
     phenotype_info[[phenotype]] <- list()
     for (pop in pops) {
-        cat(pop, "\n")
+        cat(paste0(pop, ".."))
         subsubfiles <- grep(paste0("_", pop, "[_]?[\\.]?"), subfiles, value=TRUE)
         sex <- ifelse(grepl("_(F|M).txt", subsubfiles[1]), gsub(".*_(F|M).txt.*", "\\1", subsubfiles), "ALL")
         # Ensure that all chromosomes are present
@@ -75,64 +78,74 @@ for (phenotype in phenotypes) {
             phenotype_info[[phenotype]][[pop]] <- list(binary=binary, N=n, sex=sex)
         }
     }
+    cat("\n")
 }
 
-for (phenotype in phenotypes)
-{
-    subfiles <- grep(paste0(".*chr[0-9X]+_(split_[0-9]+_)*", phenotype, "_(AFR|AMR|EAS|EUR|SAS).*"), files, value=TRUE)
-    pops <- unique(gsub(".*chr[0-9X]+_(split_[0-9]+_)*(.*)_(AFR|AMR|EAS|EUR|SAS).*", "\\3", subfiles))
+for (class in c("gene", "variant")) {
+    for (phenotype in phenotypes)
+    {
+        cat(paste0(phenotype, ": "))
+        subfiles <- grep(paste0(".*chr[0-9X]+_(split_[0-9]+_)*", phenotype, "_(AFR|AMR|EAS|EUR|SAS).*"), files[[class]], value=TRUE)
+        pops <- unique(gsub(".*chr[0-9X]+_(split_[0-9]+_)*(.*)_(AFR|AMR|EAS|EUR|SAS).*", "\\3", subfiles))
 
-    for (pop in pops) {
-        cat(pop, "\n")
-        subsubfiles <- grep(paste0("_", pop, "[_]?[\\.]?"), subfiles, value=TRUE)
-        # Ensure that all chromosomes are present
-        to_match <- paste0("chr",c(seq(1,22), "X"))
-        matched <- to_match %in% unique(gsub(".*(chr[0-9X]+).*", "\\1", subsubfiles))
-        if (all(matched)) {
-            cat(paste0("for population labelling ", pop, " "))
-            cat(paste0("all chromosomes have results files for the phenotype ", phenotype, "\n"))
+        for (pop in pops) {
+            cat(pop, "\n")
+            subsubfiles <- grep(paste0("_", pop, "[_]?[\\.]?"), subfiles, value=TRUE)
+            # Ensure that all chromosomes are present
+            to_match <- paste0("chr",c(seq(1,22), "X"))
+            matched <- to_match %in% unique(gsub(".*(chr[0-9X]+).*", "\\1", subsubfiles))
+            if (all(matched))
+            {
+                cat(paste0("for population labelling ", pop, " "))
+                cat(paste0("all chromosomes have results files for the phenotype ", phenotype, "\n"))
 
-            # Combine the results files
-            # First, ensure that no variant files have crept in
-            subsubfiles <- setdiff(subsubfiles, grep("singleAssoc", subsubfiles, value=TRUE))
-            cat("files to combine:\n", paste0(subsubfiles, collapse="\n"), "\n")
+                # Combine the results files
+                # First, ensure that no variant files have crept in
+                if (class == "gene") {
+                    subsubfiles <- setdiff(subsubfiles, grep("singleAssoc", subsubfiles, value=TRUE))
+                } else {
+                    subsubfiles <- intersect(subsubfiles, grep("singleAssoc", subsubfiles, value=TRUE))
+                }
+                cat("files to combine:\n", paste0(subsubfiles, collapse="\n"), "\n")
 
-            dt_gene <- rbindlist(lapply(subsubfiles, fread))
-            filename <- ifelse(phenotype_info[[phenotype]][[pop]][['binary']],
-                determine_binary_filename(
-                    dataset,
-                    last_name,
-                    analysis_name,
-                    phenotype,
-                    phenotype_info[[phenotype]][[pop]][['sex']],
-                    pop,
-                    phenotype_info[[phenotype]][[pop]][['N_case']],
-                    phenotype_info[[phenotype]][[pop]][['N_ctrl']],
-                    "gene",
-                    date,
-                    method,
-                    freeze_number),
-                determine_cts_filename(
-                    dataset,
-                    last_name,
-                    analysis_name,
-                    phenotype,
-                    phenotype_info[[phenotype]][[pop]][['sex']],
-                    pop,
-                    phenotype_info[[phenotype]][[pop]][['N']],
-                    "gene",
-                    date,
-                    method,
-                    freeze_number)
-                )
+                dt <- rbindlist(lapply(subsubfiles, fread))
+                filename <- ifelse(phenotype_info[[phenotype]][[pop]][['binary']],
+                    determine_binary_filename(
+                        biobank,
+                        last_name,
+                        analysis_name,
+                        phenotype,
+                        phenotype_info[[phenotype]][[pop]][['sex']],
+                        pop,
+                        phenotype_info[[phenotype]][[pop]][['N_case']],
+                        phenotype_info[[phenotype]][[pop]][['N_ctrl']],
+                        class,
+                        date,
+                        method,
+                        freeze_number),
+                    determine_cts_filename(
+                        biobank,
+                        last_name,
+                        analysis_name,
+                        phenotype,
+                        phenotype_info[[phenotype]][[pop]][['sex']],
+                        pop,
+                        phenotype_info[[phenotype]][[pop]][['N']],
+                        class,
+                        date,
+                        method,
+                        freeze_number)
+                    )
 
-            fwrite(dt_gene, quote=FALSE, file=paste0(data_dir, "/gene/sept2023/combined/", filename), sep="\t")
+                cat(paste0(data_dir, "/", class, "/sept2023/combined/", filename), "\n")
+                fwrite(dt, quote=FALSE, file=paste0(data_dir, "/", class, "/sept2023/combined/", filename), sep="\t")
 
-        } else {
-            cat(paste0("for the phenotype ", phenotype, " and population labelling ", pop,
-                ", chromosome(s) ", paste(to_match[which(matched)], collapse=", "), " have results\n"))
-            cat(paste0("for the phenotype ", phenotype, " and population labelling ", pop,
-                ", chromosome(s) ", paste(to_match[which(!matched)], collapse=", "), " do not have results\n"))
+            } else {
+                cat(paste0("for the phenotype ", phenotype, " and population labelling ", pop,
+                    ", chromosome(s) ", paste(to_match[which(matched)], collapse=", "), " have results\n"))
+                cat(paste0("for the phenotype ", phenotype, " and population labelling ", pop,
+                    ", chromosome(s) ", paste(to_match[which(!matched)], collapse=", "), " do not have results\n"))
+            }
         }
     }
 }
@@ -142,6 +155,13 @@ system(paste0("Rscript munge_results_files_Group_names.r",
 	" --folder ", data_dir, "/gene/sept2023/combined",
 	" --out_folder ", out_data_dir, "/gene",
 	" --write")
+)
+
+system(paste0("Rscript munge_results_files_Group_names.r",
+    " --folder ", data_dir, "/variant/sept2023/combined",
+    " --out_folder ", out_data_dir, "/variant",
+    " --type variant",
+    " --write")
 )
 
 # Finally, upload the cleaned version of the results to the allocated google bucket

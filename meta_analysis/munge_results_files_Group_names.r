@@ -162,9 +162,12 @@ main <- function(args)
 				}
 			}
 
-			if (type == "variant") {
+			if (type == "variant")
+			{
 				dt <- fread(new_f, nrows=1000)
 				rename <- FALSE
+				marker_fix <- FALSE
+
 				for (n in names(renaming_variant_header_list)) {
 					if (!(n %in% names(dt))) {
 						cat(paste("attempting to rename to", n,"\n"))
@@ -179,19 +182,47 @@ main <- function(args)
 					}
 				}
 
+				# Remove all instances of the ultra-rare variants of various classes in the 
+				# genes. We can consider those in separate tests if we need to, and the 
+				# remants of them within the constituent variant files can be removed at the 
+				# end if need be, so we don't need to worry about them being retained.
+				dt <- dt %>% filter(CHR != "UR")
+
+				if (!all(grepl("^chr[0-9X]*:[0-9]+:[ACGT]+:[ACGT]+$", dt[['MarkerID']])))
+				{
+					cat(paste0("marker ID does not match the expected format...\n"))
+					cat(paste0("testing to see if it matches other likely formats...\n"))
+					if (all(grepl(
+						"^chr[0-9X]*[:,/\\_][0-9]+[:,/\\_][ACGT]+[:,/\\_][ACGT]+$",
+						dt[['MarkerID']]))) {
+						cat(paste0("it matches an alternative potential format, attempting to fix\n"))
+						rename <- TRUE
+						marker_fix <- TRUE
+					} else {
+						stop("cannot determine the correct renaming of the variant IDs, please check the file")
+					}
+				}
+
 				out_f <- gsub(folder, paste0(args$out_folder, "/"), new_f)
 				if (args$write) {
 					if (rename) {
 						new_names <- names(dt)
 						dt <- fread(new_f)
 						names(dt) <- new_names
+						dt <- dt %>% filter(CHR != "UR")
+						dt <- data.table(dt)
+						if (marker_fix) {
+							dt[, MarkerID := gsub(
+								"^(chr[0-9X]*)[:,/\\_]([0-9]+)[:,/\\_]([ACGT]+)[:,/\\_]([ACGT]+)$",
+								"\\1:\\2:\\3:\\4", MarkerID)]
+						}
 						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
 						cat("file written to:\n")
 						cat(paste0(out_f, "\n"))
-					} else if (out_f != f) {
+					} else if (out_f != new_f) {
 						cat("just need to rename the file:\n")
 						cat(paste0(out_f, "\n"))
-						file.rename(f, out_f)
+						file.rename(new_f, out_f)
 					} else {
 						cat("nothing required, the file is ready to go:\n")
 						cat(paste0(out_f, "\n"))
