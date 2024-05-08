@@ -12,6 +12,12 @@ T_gqMean <- 47.8
 T_impute_sex_lower <- 0.2
 T_impute_sex_upper <- 0.8
 
+# 05_estimate_superpopulation.r
+T_RF <- 0.99
+
+# 06_1_impute_sex_superpopulations_plot.r
+T_impute_sex <- c(0.2, 0.8)
+
 # 08_2_final_variant_qc_filter.r
 T_variant_callRate <- 0.97
 T_pHWE <- 1e-10

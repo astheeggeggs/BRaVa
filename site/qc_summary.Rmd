@@ -1,0 +1,196 @@
+---
+title: "Summary of QC filtering"
+output: 
+  html_document:
+    theme: united
+    highlight: tango
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    css: "my-style.css"
+---
+ <br>
+
+## Variant filtering
+
+For our QC pipeline, we first read in the .vcf file, split multiallelics, and realign indels. A series of careful initial QC steps are applied before a filtered .vcf and matrix table is passed to this QC pipeline.
+
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(plotly)
+require(crosstalk)
+require(data.table)
+require(dplyr)
+require(DT)
+require(kableExtra)
+require(formattable)
+require(htmltools)
+source("../QC_DNAnexus/utils/r_options.r")
+source("../QC_DNAnexus/utils/helpers.r")
+options(dplyr.summarise.inform=F)
+
+options(dplyr.summarise.inform=F)
+download_tables <- FALSE
+
+summary_fun <- function(dt, by_pop=TRUE) {
+  if (by_pop) {
+    
+    dt <- data.table(dt %>% filter(classified) %>% group_by(classification_strict) %>% summarise(
+        "Samples"=n()) %>% rename(Label = classification_strict))
+    setkey(dt, "Label")
+    return(dt)
+  } else {
+    data.table(dt %>% summarise("Samples"=n()))
+  }
+}
+
+if (download_tables) {
+  # Step -1
+  # Importantly, we do not filter based on any of the information present in this initial table
+  # this is purely to get a baseline on the total number of samples that have phenotype information
+  system("dx download Barney/qc2/QC_phenotypes.tsv.gz -o ../site_tables/450k/")
+  # Step 3
+  system("mkdir -p ../site_tables/450k/summary")
+  system("dx download Barney/qc2/03_initial_sample/03_initial_sample_qc.tsv -o ../site_tables/450k/")
+  system("dx download Barney/qc2/03_initial_sample/03_initial_qc.keep.sample_list -o ../site_tables/450k/")
+  system("dx download Barney/qc2/03_initial_sample/03_sample_count.tsv -o ../site_tables/450k/")
+  # Step 5
+  system("dx download Barney/qc2/05_estimate_superpopulation/superpopulation_labels.tsv -o ../site_tables/450k/")
+  # Step 6
+  system("dx download Barney/qc2/06_impute_sex/06_sexcheck.remove.BRaVa.sample_list -o ../site_tables/450k/")
+  # Step 8
+  system("dx download Barney/qc2/08_0_final_variant_qc/08_variant_count.pop.tsv -o ../site_tables/450k/")
+  # Step 9
+  system("dx download Barney/qc2/09_0_final_sample_qc/09_final_qc.keep.BRaVa.sample_list -o ../site_tables/450k/")
+  system("dx download Barney/qc2/09_0_final_sample_qc/09_final_sample.summary.tsv -o ../site_tables/450k/")
+
+  # Update the plots
+  # DEV: include the download script here
+  # system("mkdir -p ../site/plots")
+  # system(paste0("cp ", PLOTS, "*jpg ", "../site/plots/"))
+
+  # Determine all of the removals
+  # Everyone
+  dt_pheno <- data.table(fread("../site_tables/450k/QC_phenotypes.tsv.gz") %>% rename(s = ID))
+  setkey(dt_pheno, "s")
+
+  # step 3 filters
+  dt_initial_vcf <- fread("../site_tables/450k/03_initial_sample_qc.tsv", key="s", select="s")[, initial_vcf := TRUE]
+  dt_initial_sample_qc <- fread("../site_tables/450k/03_initial_qc.keep.sample_list", col.names=c("s"), key="s")[, initial_sample_qc := TRUE]
+
+  # step 5 filters
+  dt_pop_labels <- fread("../site_tables/450k/superpopulation_labels.tsv") %>% 
+    filter(classification_strict != "") %>% 
+    transmute(s = as.integer(`sample.ID`), classification_strict = classification_strict)
+
+  # step 6 filters
+  dt_sex_removed <- fread("../site_tables/450k/06_sexcheck.remove.BRaVa.sample_list", col.names=c("s"), key="s")[, sex_removed := TRUE]
+
+  # step 9 filters
+  dt_final_list <- fread("../site_tables/450k/09_final_qc.keep.BRaVa.sample_list", col.names=c("s"), key="s")[, final_list := TRUE]
+
+  dt_summary <- merge(dt_pheno, dt_initial_vcf, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_initial_sample_qc, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_sex_removed, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_pop_labels, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_final_list, all.x=TRUE)
+
+  dt_summary[, initial_vcf:=ifelse(is.na(initial_vcf), FALSE, initial_vcf)]
+  dt_summary[, initial_sample_qc:=ifelse(is.na(initial_sample_qc), FALSE, initial_sample_qc)]
+  dt_summary[, sex_removed:=ifelse(is.na(sex_removed), FALSE, sex_removed)]
+  dt_summary[, classified := !(is.na(classification_strict) | classification_strict == "unsure")]
+  dt_summary[, final_list:=ifelse(is.na(final_list), FALSE, final_list)]
+
+  # Check counts
+  nrow(dt_summary %>% filter(initial_vcf))
+  # 418,045
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc))
+  # 412,508
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed))
+  # 412,239
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed, classified))
+  # 411,824
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed, classified, final_list))
+  # 411,547
+}
+
+```
+
+```{r variant_table, echo=FALSE, out.width = '100%', warning=FALSE}
+
+# Hard-coded summary from Nik's initial QC
+# Created using count_variants_steps_0_1.r
+dt <- fread('../site_tables/450k/summary/03_variant_count_summary.tsv')
+dt_init_variant <- fread('../site_tables/450k/summary/00_variant_count_summary.tsv') %>% filter(chrom=="Total")
+dt_init_variant[, chrom:=NULL]
+dt_init_variant <- data.table(
+  Filter = names(dt_init_variant),
+  Count = unlist(dt_init_variant[1,])) %>% 
+  mutate(AFR = NA, AMR = NA, EAS = NA, EUR = NA, SAS = NA)
+
+dt_init_variant <- dt_init_variant %>% filter(Filter != "For sample metrics")
+removed_count <- (dt_init_variant %>% filter(Filter == "Raw count"))$Count - (dt_init_variant %>% filter(Filter == "Following MAD"))$Count
+dt_to_add <- data.table(Filter = "Variants removed in initial filters", Count = removed_count) 
+
+dt <- rbind(dt_init_variant %>% rename(Variants=Count), dcast(dt, Filter ~ Label, value.var="Variants"), fill=TRUE)
+
+dt %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+
+```
+
+<br>
+
+## Sample filtering
+
+<br>
+
+```{r sample_summary_table, echo=FALSE, out.width = '100%', warning=FALSE}
+
+if (download_tables) {
+  # Hard-coded summary
+  dt_init_sample <- data.table(
+    Filter = c("Initial samples in raw UKBB vcf"),
+    Samples = c(500000)
+  )
+
+  dt_init_sample <- rbind(dt_init_sample,
+    fread("../site_tables/450k/03_sample_count.tsv",
+      header=FALSE,
+      col.names=c("Filter", "Samples")
+    )
+  )
+
+  dt_final <- fread("../site_tables/450k/09_final_sample.summary.tsv") %>% mutate(
+    Samples = (AFR + AMR + EAS + EUR + SAS))
+
+  dt_init_sample <- rbind(
+    dt_init_sample[-nrow(dt_init_sample),] %>%
+    mutate(AFR = NA, AMR = NA, EAS = NA, EUR = NA, SAS = NA)
+  )
+
+  dt_sex_swap_tmp <- summary_fun(dt_summary %>% filter(initial_vcf, initial_sample_qc, sex_removed))
+  dt_sex_swap <- t(dt_sex_swap_tmp$Sample)
+  colnames(dt_sex_swap) <- dt_sex_swap_tmp$Label
+  dt_sex_swap <- data.table(dt_sex_swap) %>% mutate(
+    Samples = (AFR + AMR + EAS + EUR + SAS), Filter = "Samples with sex swap")
+
+  dt <- rbind(dt_init_sample, dt_sex_swap, dt_final)
+  dt <- dt %>% mutate(`%` = round(100 * Samples/max(Samples), 1))
+
+  fwrite(dt, file = "../site_tables/450k/summary/sample_detailed_summary_table.tsv", sep='\t')
+} else {
+  dt <- fread("../site_tables/450k/summary/sample_detailed_summary_table.tsv")
+}
+
+dt %>% mutate("%" = color_bar("#0081c2")(unlist(dt[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+
+```

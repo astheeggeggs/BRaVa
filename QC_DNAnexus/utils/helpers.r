@@ -3,7 +3,7 @@ library(dplyr)
 
 create_pheno_dt <- function(TRANCHE)
 {
-    PHENOFILE <- paste0("/mnt/project/Barney/qc2/QC_phenotypes.tsv.gz')
+    PHENOFILE <- paste0("/mnt/project/Barney/qc2/QC_phenotypes.tsv.gz")
     
     dt <- fread(cmd=paste('zcat', PHENOFILE)) %>% 
         mutate(s=ID) %>% 

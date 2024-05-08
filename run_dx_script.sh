@@ -24,7 +24,6 @@ instance_count="1"
 # Duration in minutes
 duration="1000" # arbitrarily large, cost limit will automatically terminate if needed
 
-
 # Cost limit (in GBP)
 cost_limit="500"
 
@@ -33,7 +32,6 @@ cost_limit="500"
 pyscript="10_2_create_qc_plink.py"
 
 dx upload QC_DNAnexus/$pyscript --destination /Barney/scripts/
-
 
 for chrom in 19; do
     # Name of job

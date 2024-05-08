@@ -5,7 +5,7 @@ library(ggplot2)
 library(randomForest)
 library(ggrastr)
 
-# Note, there is no step 4 in our WES 200k pipeline because we do not need to create a high quality plink file
+# Note, there is no step 4 in our WES 200k/450k pipeline because we do not need to create a high quality plink file
 # of variants - we already have the genotype data! These will allow us to perform PCA more accurately than 
 # with the exome data alone. We also have the KING relatedness coefficients from UK Biobank, so don't need 
 # thinned autosomal variants for IBD estimation either.
@@ -134,7 +134,6 @@ PCs_to_use <- paste0('PC', seq(1,4))
 
 # Determine a classifier.
 set.seed(160487)
-T_RF <- 0.99
 rf <- randomForest(x=dt_train %>% select(PCs_to_use), y=as.factor(as.character(dt_train$super.population)), ntree=10000)
 rf_probs <- predict(rf, dt_predict %>% select(PCs_to_use), type='prob')
 
@@ -222,7 +221,7 @@ if (perform_plotting)
           x_label=paste0('Principal Component ',i),
           y_label=paste0('Principal Component ', i+1)
           )
-        # ggsave(file=paste0(PLOTS,'05_PC',i,'_PC',i+1,'_classify_strict_1kg_labelled.pdf'), width=160, height=90, units='mm')
+        ggsave(file=paste0(PLOTS,'05_PC',i,'_PC',i+1,'_classify_strict_1kg_labelled.pdf'), width=160, height=90, units='mm')
         ggsave(file=paste0(PLOTS,'05_PC',i,'_PC',i+1,'_classify_strict_1kg_labelled.jpg'), width=160, height=90, units='mm', dpi=500)
 
     }

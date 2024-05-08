@@ -25,7 +25,6 @@ Y_NCALLED_FILE <- args$y_called_file
 
 # Outputs:
 SEXCHECK_LIST <- args$sexcheck_list
-T_impute_sex <- c(0.2, 0.8)
 
 dt_y <- fread(cmd = paste('zcat', Y_NCALLED_FILE), sep='\t', stringsAsFactors=FALSE, header=TRUE, data.table=FALSE)
 dt_false <- list()

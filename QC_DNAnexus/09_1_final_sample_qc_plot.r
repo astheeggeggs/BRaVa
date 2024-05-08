@@ -133,6 +133,6 @@ if (save_figures)
     # rTiTv
     create_pretty_boxplots(dt, aes(y=sample_qc.r_ti_tv, x=factor(population)),
         aes(color=factor(population)), facet=TRUE, facet_grid=facet_grid(phase~.), x_label='rTiTv',
-        save_figure=save_figures, file=paste0(PLOTS, '09_rTiTv_by_centre_by_1000G_label'), n_ticks=5, y_label=y_labels,
+        save_figure=save_figures, file=paste0(PLOTS, '09_rTiTv_by_1000G_label'), n_ticks=5, y_label=y_labels,
         alpha=alpha, height=140)
 }

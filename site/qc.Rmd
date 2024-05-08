@@ -1,0 +1,495 @@
+---
+title: "Quality control pipeline"
+output: 
+  html_document:
+    theme: united
+    highlight: tango
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    css: "my-style.css"
+---
+
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(plotly)
+require(crosstalk)
+require(data.table)
+require(dplyr)
+require(DT)
+require(kableExtra)
+require(formattable)
+require(htmltools)
+source("../QC_DNAnexus/utils/r_options.r")
+source("../QC_DNAnexus/utils/helpers.r")
+
+# Note to update the website, we need to compile it on the cluster first (to sort tables and plots), and then locally to ensure the correct formatting.
+
+options(dplyr.summarise.inform=F)
+download_tables <- FALSE
+
+summary_fun <- function(dt, by_pop=TRUE) {
+  if (by_pop) {
+    dt <- data.table(dt %>% filter(classified) %>% group_by(classification_strict) %>% summarise(
+        "Samples"=n()) %>% rename(Label = classification_strict))
+    setkey(dt, "Label")
+    return(dt)
+  } else {
+    data.table(dt %>% summarise("Samples"=n()))
+  }
+}
+
+if (download_tables) {
+  # Step -1
+  # Importantly, we do not filter based on any of the information present in this initial table
+  # this is purely to get a baseline on the total number of samples that have phenotype information
+  system("dx download Barney/qc2/QC_phenotypes.tsv.gz -o ../site_tables/450k/")
+  # Step 3
+  system("mkdir -p ../site_tables/450k/summary")
+  system("dx download Barney/qc2/03_initial_sample/03_initial_sample_qc.tsv -o ../site_tables/450k/")
+  system("dx download Barney/qc2/03_initial_sample/03_initial_qc.keep.sample_list -o ../site_tables/450k/")
+  system("dx download Barney/qc2/03_initial_sample/03_sample_count.tsv -o ../site_tables/450k/")
+  # Step 5
+  system("dx download Barney/qc2/05_estimate_superpopulation/superpopulation_labels.tsv -o ../site_tables/450k/")
+  # Step 6
+  system("dx download Barney/qc2/06_impute_sex/06_sexcheck.remove.BRaVa.sample_list -o ../site_tables/450k/")
+  # Step 8
+  system("dx download Barney/qc2/08_0_final_variant_qc/08_variant_count.pop.tsv -o ../site_tables/450k/")
+  # Step 9
+  system("dx download Barney/qc2/09_0_final_sample_qc/09_final_qc.keep.BRaVa.sample_list -o ../site_tables/450k/")
+  system("dx download Barney/qc2/09_0_final_sample_qc/09_final_sample.summary.tsv -o ../site_tables/450k/")
+
+  # Update the plots
+  # DEV: include the download script here
+  # system("mkdir -p ../site/plots")
+  # system(paste0("cp ", PLOTS, "*jpg ", "../site/plots/"))
+
+  # Determine all of the removals
+  # Everyone
+  dt_pheno <- data.table(fread("../site_tables/450k/QC_phenotypes.tsv.gz") %>% rename(s = ID))
+  setkey(dt_pheno, "s")
+
+  # step 3 filters
+  dt_initial_vcf <- fread("../site_tables/450k/03_initial_sample_qc.tsv", key="s", select="s")[, initial_vcf := TRUE]
+  dt_initial_sample_qc <- fread("../site_tables/450k/03_initial_qc.keep.sample_list", col.names=c("s"), key="s")[, initial_sample_qc := TRUE]
+
+  # step 5 filters
+  dt_pop_labels <- fread("../site_tables/450k/superpopulation_labels.tsv") %>% 
+    filter(classification_strict != "") %>% 
+    transmute(s = as.integer(`sample.ID`), classification_strict = classification_strict)
+
+  # step 6 filters
+  dt_sex_removed <- fread("../site_tables/450k/06_sexcheck.remove.BRaVa.sample_list", col.names=c("s"), key="s")[, sex_removed := TRUE]
+
+  # step 9 filters
+  dt_final_list <- fread("../site_tables/450k/09_final_qc.keep.BRaVa.sample_list", col.names=c("s"), key="s")[, final_list := TRUE]
+
+  dt_summary <- merge(dt_pheno, dt_initial_vcf, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_initial_sample_qc, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_sex_removed, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_pop_labels, all.x=TRUE)
+  dt_summary <- merge(dt_summary, dt_final_list, all.x=TRUE)
+
+  dt_summary[, initial_vcf:=ifelse(is.na(initial_vcf), FALSE, initial_vcf)]
+  dt_summary[, initial_sample_qc:=ifelse(is.na(initial_sample_qc), FALSE, initial_sample_qc)]
+  dt_summary[, sex_removed:=ifelse(is.na(sex_removed), FALSE, sex_removed)]
+  dt_summary[, classified := !(is.na(classification_strict) | classification_strict == "unsure")]
+  dt_summary[, final_list:=ifelse(is.na(final_list), FALSE, final_list)]
+
+  # Check counts
+  nrow(dt_summary %>% filter(initial_vcf))
+  # 418,045
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc))
+  # 412,508
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed))
+  # 412,239
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed, classified))
+  # 411,824
+  nrow(dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed, classified, final_list))
+  # 411,547
+}
+
+```
+ <br>
+
+On this page we detail the quality control (QC) pipeline for the UK Biobank exomes before starting our analyses. Further plots and the underlying code can be found on the SAIGE gene munging github [repository](https://github.com/BRaVa-genetics/BRaVa_curation).
+
+For our QC pipeline, we first perform a collection of careful [QC steps](https://github.com/lindgrengroup/ukb_wes_qc). The initial step in this process is to read in the `.vcf` files, split multiallelics and realign indels, and calculate a collection of sample-level statistics.
+
+<br>
+
+# Initial sample filtering
+
+* Filter out samples based on MAD thresholds.
+
+<br>
+
+# Initial genotype filtering
+
+Our next step (after conversion of the joint called `.vcf` file to a hail matrix table) is to remove genotypes based on the following collection of criteria:
+
+* Remove if at least one of the following is true:
+    + Genotype quality $<$ 20
+    + Depth $<$ 10
+
+* If heterozygous and a SNP:
+    + _P_-value from 1-sided binomial test of alt allele read depth relative to ref+alt read depth $<$ 10^-3^
+
+* If heterozygous and an indel:
+    + Alternative allele depth divided by total depth $<$ 0.3
+
+<br>
+
+# Initial variant filtering
+
+Remove variants that either:
+
+*  Are invariant after the initial GT filter
+*  Fall in a low complexity region
+*  Fall outside padded target intervals (50bp padding)
+*  Have GATK ExcessHet > 54.69
+
+Following this initial curation we perform a series of further QC steps detailed in this repository.
+
+We run the sample_qc function in hail and remove samples according to the following:
+
+* Sample call rate $<$ `r T_sample_callRate`
+* Mean depth $<$ `r T_dpMean`
+* Mean genotype quality $<$ `r T_gqMean`
+
+Thresholds used were based on plotting the distributions of these metrics. Here we show boxplots with overlaid scatterplots of the above metrics, split by UKBB centre, and coloured by sequencing batch. The threshold for exclusion is shown as a dashed line.
+
+```{r init_samples, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/03_callRate_hist.jpg")
+knitr::include_graphics("./plots/450k/03_dpMean_hist.jpg")
+knitr::include_graphics("./plots/450k/03_gqMean_hist.jpg")
+# knitr::include_graphics("./plots/450k/03_callRate_cdf.jpg")
+# knitr::include_graphics("./plots/450k/03_dpMean_cdf.jpg")
+# knitr::include_graphics("./plots/450k/03_gqMean_cdf.jpg")
+```
+
+```{r sample_table, echo=FALSE, out.width = '100%', warning=FALSE}
+
+if (download_tables) {
+  dt <- fread("../site_tables/450k/03_sample_count.tsv", header=FALSE)
+  names(dt) <- c("Filter", "Samples")
+  dt[,"%"] <- round(100 * dt$Samples/dt$Samples[1], 1)
+  fwrite(dt, file = "../site_tables/450k/summary/01_sample_summary.tsv", sep="\t")
+} else {
+  dt <- fread( "../site_tables/450k/summary/01_sample_summary.tsv")
+}
+
+dt %>% mutate("%" = color_bar("#0081c2")(unlist(dt[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+
+```
+
+Following this step, we export genotyped variants on the X chromosome (allele frequency between 0.05 to 0.95 with high call rate (> 0.98)) to plink format and prune to pseudo-independent SNPs using `--indep 50 5 2`. This pruned set of SNPs feeds into the sex imputation step.
+
+<br>
+
+# PCA to assign broad scale ancestry based on 1000 genomes labels
+
+We next perform a number of principal component analysis (PCA) steps to label with broad scale ancestry.
+
+We first run PCA on the 1000 genomes samples (minus the small subset of related individuals within 1000 genomes). We then project in the UK Biobank samples, ensuring that we correctly account for shrinkage bias in the projection.
+
+We then train a classifier to assign 1000G population labellings. To do this, we train a random forest on the super populations labels of 1000 genomes and predict the super population for each of the UK Biobank samples. We denote strictly defined European subset as those with probability $>$ `r T_RF` of being European according to the classifier. UK Biobank samples are coloured by their assignment or unsure if none of the classifier probabilities exceeded `r T_RF` in the following plots.
+
+Here is the loose classifier, with no probability restriction on classification:
+
+```{r pca_1kg, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/05_PC1_PC2_classify_loose_1kg_labelled.jpg")
+knitr::include_graphics("./plots/450k/05_PC3_PC4_classify_loose_1kg_labelled.jpg")
+knitr::include_graphics("./plots/450k/05_PC5_PC6_classify_loose_1kg_labelled.jpg")
+```
+
+## Following the Strict Cutoff
+And here are the resultant classifications after imposing a probability cutoff of `r T_RF`.
+
+```{r pca_1kg_strict, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/05_PC1_PC2_classify_strict_1kg_labelled.jpg")
+knitr::include_graphics("./plots/450k/05_PC3_PC4_classify_strict_1kg_labelled.jpg")
+knitr::include_graphics("./plots/450k/05_PC5_PC6_classify_strict_1kg_labelled.jpg")
+```
+
+Subsequent filters are applied stratified by 1000G population labelling.
+
+# Sex imputation
+
+We impute the sexes of the individuals with this pruned set of variants on the X chromosome, and create list of samples with incorrect or unknown sex as defined by:
+
+* Sex is unknown in the phenotype files
+* _F_-statistic $>$ `r T_impute_sex[2]` and the sex is female in the phenotype file
+* _F_-statistic $<$ `r T_impute_sex[1]` and the sex is male in the phenotype file
+* _F_-statistic $>$ `r T_impute_sex[2]` and number of calls on the Y is $<$ 100.
+* _F_-statistic lies in the interval (`r T_impute_sex[1]`, `r T_impute_sex[2]`).
+
+Here we show the distribution of the _F_-statistic, with the `r T_impute_sex[1]` and `r T_impute_sex[2]` thresholds defining our sex impututation shown as a dashed lines.
+
+## AFR
+```{r impute_sex_AFR, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/04_imputesex_histogram_AFR.jpg")
+# knitr::include_graphics("./plots/450k/04_imputesex_scatter_box_AFR.jpg")
+```
+
+## AMR
+```{r impute_sex_AMR, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/04_imputesex_histogram_AMR.jpg")
+# knitr::include_graphics("./plots/450k/04_imputesex_scatter_box_AMR.jpg")
+```
+
+## EAS
+```{r impute_sex_EAS, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/04_imputesex_histogram_EAS.jpg")
+# knitr::include_graphics("./plots/450k/04_imputesex_scatter_box_EAS.jpg")
+```
+
+## EUR
+```{r impute_sex_EUR, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/04_imputesex_histogram_EUR.jpg")
+# knitr::include_graphics("./plots/450k/04_imputesex_scatter_box_EUR.jpg")
+```
+
+## SAS
+```{r impute_sex_SAS, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/04_imputesex_histogram_SAS.jpg")
+# knitr::include_graphics("./plots/450k/04_imputesex_scatter_box_SAS.jpg")
+```
+
+```{r sample_sex_removal_table, echo=FALSE, out.width = '100%', warning=FALSE}
+
+# Note that in these two tables, dt is the table that is displayed after the boxplots on webpage.
+
+if (download_tables) {
+
+  dt_before <- dt_summary %>% filter(initial_vcf, initial_sample_qc)
+  dt_removed <- dt_summary %>% filter(initial_vcf, initial_sample_qc, sex_removed)
+  dt_after <- dt_summary %>% filter(initial_vcf, initial_sample_qc, !sex_removed)
+
+  dt <- merge(merge(summary_fun(dt_before)[, Before:=Samples][, Samples:=NULL],
+    summary_fun(dt_removed)[, Removed:=Samples][, Samples:=NULL]),
+    summary_fun(dt_after)[, After:=Samples][, Samples:=NULL])
+
+  dt <- rbind(dt,
+    cbind(Label = "Total",
+      summary_fun(dt_before, by_pop=FALSE)[, Before := Samples][, Samples := NULL],
+      summary_fun(dt_removed, by_pop=FALSE)[ , Removed := Samples][, Samples := NULL],
+      summary_fun(dt_after, by_pop=FALSE)[, After := Samples][, Samples := NULL]
+      )
+    )
+
+  dt <- dt %>% mutate(`%` = round(100 * After/Before, 1))
+
+  fwrite(dt, file = "../site_tables/450k/summary/02_sex_removal_summary.tsv", sep="\t")
+
+} else {
+  dt <- fread("../site_tables/450k/summary/02_sex_removal_summary.tsv")
+}
+
+dt %>% mutate("%" = color_bar("#0081c2")(unlist(dt[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+```
+
+<br>
+
+# Final variant filtering
+
+For our final variant filtering step, we first restrict to samples with strictly defined 1000G labellings, filter out samples with incorrectly defined sex or unknown sex, and run variant QC. Stratifying by 1000G labelling, we then evaluate a collection of variant metrics and remove variants that satisfy at least one of:
+
+* Invariant site in cleaned sample subset
+* Call rate $<$ `r T_variant_callRate`
+* _P_-HWE $<$ 10^-6^
+
+The following plots shows the `r T_variant_callRate` threshold for call rate.
+
+```{r final_variant, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/08_callRate_cdf.jpg")
+```
+
+```{r variant_final_table, echo=FALSE, out.width = '100%', warning=FALSE}
+
+if (download_tables) {
+  dt <- fread('../site_tables/450k/08_variant_count.pop.tsv', header=FALSE)
+  names(dt) <- c("Label", "Variants", "Filter")
+  dt <- dt %>% group_by(Label) %>% mutate('%' = round(100 * Variants/max(Variants), 1))
+  fwrite(dt, file = "../site_tables/450k/summary/03_variant_count_summary.tsv", sep="\t")
+} else {
+  dt <- fread("../site_tables/450k/summary/03_variant_count_summary.tsv")
+}
+```
+
+## AFR
+```{r variant_final_table_AFR, echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% filter(Label == "AFR") %>% select(Filter, Variants, `%`)
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+```
+
+## AMR
+```{r variant_final_table_AMR, echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% filter(Label == "AMR") %>% select(Filter, Variants, `%`)
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+```
+
+## EAS
+```{r variant_final_table_EAS, echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% filter(Label == "EAS") %>% select(Filter, Variants, `%`)
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+```
+
+## EUR
+```{r variant_final_table_EUR, echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% filter(Label == "EUR") %>% select(Filter, Variants, `%`)
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+```
+
+## SAS
+```{r variant_final_table_SAS, echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% filter(Label == "SAS") %>% select(Filter, Variants, `%`)
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+  kable_styling('hover')
+```
+
+After these steps we plot the resulting changes in metrics across the samples in our data set. Each of this first set plots splits the data by 1000G label. The first collection of subplots in each figure shows the variant metrics before sample removal, with the lower collection of subplots showing the resultant change after our QC steps.
+
+## Number of Singletons
+```{r final_sample_centre_singletons, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/09_nSingletons_by_1000G_label.jpg")
+```
+
+## Ratio of Heterozygous to Homozygous Variants
+```{r final_sample_centre_HetHom, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/09_rHetHomVar_by_1000G_label.jpg")
+
+## Ratio of Insertions to Deletions
+```{r final_sample_centre_InDel, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/09_rInsertionDeletion_by_1000G_label.jpg")
+
+## Ratio of Transitions to Transversions
+```{r final_sample_centre_TiTv, echo=FALSE, out.width = '100%', warning=FALSE}
+knitr::include_graphics("./plots/450k/09_rTiTv_by_1000G_label.jpg")
+```
+
+<br>
+
+# Final sample filtering
+
+In this step we remove sample outliers after the variant cleaning in the previous step. Samples are removed if at least one of the following lies more than `r round(n_mads/1.4826)` standard deviations away from the mean (corresponding to a MAD threshold of `r n_mads`):
+
+* Ratio of transitions to transversions
+* Ratio of heterozygous to homozygous variant
+* Ratio of insertions to deletions
+
+```{r variant_sample_table, echo=FALSE, out.width = '100%', warning=FALSE}
+
+if (download_tables) {
+  dt <- fread("../site_tables/450k/09_final_sample.summary.tsv")
+  fwrite(dt, file = "../site_tables/450k/summary/04_sample_count_summary.tsv", sep="\t")
+} else {
+  dt <- fread("../site_tables/450k/summary/04_sample_count_summary.tsv")
+}
+
+## AFR
+```{r sample_AFR , echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% transmute(Filter = Filter, Samples = AFR) %>% mutate(`%` = round(100 * Samples/max(Samples), 1))
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+ kable_styling('hover')
+
+```
+
+## AMR
+```{r sample_AMR , echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% transmute(Filter = Filter, Samples = AMR) %>% mutate(`%` = round(100 * Samples/max(Samples), 1))
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+ kable_styling('hover')
+
+```
+
+## EAS
+```{r sample_EAS , echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% transmute(Filter = Filter, Samples = EAS) %>% mutate(`%` = round(100 * Samples/max(Samples), 1))
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+ kable_styling('hover')
+
+```
+
+## EUR
+```{r sample_EUR , echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% transmute(Filter = Filter, Samples = EUR) %>% mutate(`%` = round(100 * Samples/max(Samples), 1))
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+ kable_styling('hover')
+
+```
+
+## SAS
+```{r sample_SAS , echo=FALSE, out.width = '100%', warning=FALSE}
+dt_tmp <- dt %>% transmute(Filter = Filter, Samples = SAS) %>% mutate(`%` = round(100 * Samples/max(Samples), 1))
+dt_tmp %>% mutate("%" = color_bar("#0081c2")(unlist(dt_tmp[,'%']))) %>% 
+  kable("html", escape=FALSE, align=c('l', 'r', 'r', 'r', 'r'), format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_tmp), bold = T, color = "white", background = "#0C6EBE") %>% 
+ kable_styling('hover')
+
+```
+
+<br>
+
+# Final Sample Counts
+After all of this data cleaning, we save the resultant data for downstream analyses.
+
+The composition of the samples according to 1000G labelling was as follows:
+
+<br>
+
+```{r final_sample_composition, echo=FALSE, out.width = '100%', warning=FALSE}
+
+if (download_tables) {
+  # Merge the following with population labels and write
+  dt_final_samples <- fread('../site_tables/450k/09_final_qc.keep.BRaVa.sample_list', col.names='s', key='s')
+  # Read in the labellings and merge
+
+  dt_loc <- merge(dt_pop_labels, dt_final_samples) %>% group_by(classification_strict) %>% summarize(Count=n())
+  names(dt_loc) <- c("Label", "Count")
+  fwrite(dt_loc, file="../site_tables/450k/summary/05_final_table_1000G_label.tsv", sep="\t")
+} else {
+  dt_loc <- fread("../site_tables/450k/summary/05_final_table_1000G_label.tsv")
+  dt_loc <- rbind(
+    dt_loc,
+    data.table(Label = "Total", dt_loc %>% summarise(Count=sum(Count)))
+  )
+}
+
+dt_loc %>%
+  kable("html", escape=FALSE, format.args = list(big.mark = ",")) %>% row_spec(0,bold=TRUE) %>%
+  row_spec(nrow(dt_loc), bold = T, color = "white", background = "#0C6EBE") %>%  
+  kable_styling('hover')
+
+```

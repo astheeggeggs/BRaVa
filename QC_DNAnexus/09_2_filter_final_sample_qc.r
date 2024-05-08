@@ -163,9 +163,9 @@ dt_final_sample_summary <- cbind(
   data.table(
     Filter = c(
       "Samples after population filters",
-      paste0("Within batch Ti/Tv ratio outside ", n_mads, " standard deviations"),
-      paste0("Within batch Het/HomVar ratio outside ", n_mads, " standard deviations"),
-      paste0("Within batch Insertion/Deletion ratio outside ", n_mads, " standard deviations"),
+      paste0("Within batch Ti/Tv ratio outside ", n_mads, " median absolute deviations"),
+      paste0("Within batch Het/HomVar ratio outside ", n_mads, " median absolute deviations"),
+      paste0("Within batch Insertion/Deletion ratio outside ", n_mads, " median absolute deviations"),
       paste0("n singletons > ", n_mads_singleton , " median absolute deviations"),
       "Samples after final sample filters"
       )

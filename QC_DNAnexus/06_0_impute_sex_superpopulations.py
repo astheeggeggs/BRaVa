@@ -21,12 +21,12 @@ Y_NCALLED = '04_ycalled.tsv.bgz'
 REFERENCE = 'GRCh37' # Note that the reference genome could be different for genotyping data vs sequencing data due to age of technology - watch out!
 
 print("Inputs:")
-print("BIM_X; X chromrome plink bim file: ", BIM_X)
-print("BED_X; X chromrome plink bim file: ", BED_X)
-print("FAM_X; X chromrome plink bim file: ", FAM_X)
-print("BIM_Y; Y chromrome plink bim file: ", BIM_Y)
-print("BED_Y; Y chromrome plink bim file: ", BED_Y)
-print("FAM_Y; Y chromrome plink bim file: ", FAM_Y)
+print("BIM_X; X chromosome plink bim file: ", BIM_X)
+print("BED_X; X chromosome plink bim file: ", BED_X)
+print("FAM_X; X chromosome plink bim file: ", FAM_X)
+print("BIM_Y; Y chromosome plink bim file: ", BIM_Y)
+print("BED_Y; Y chromosome plink bim file: ", BED_Y)
+print("FAM_Y; Y chromosome plink bim file: ", FAM_Y)
 print("INITIAL_SAMPLES; initial samples following QC: ", INITIAL_SAMPLES)
 print("PRUNED_CHRX_VARIANTS; pruned chromosome X variants for sex imputation: ", PRUNED_CHRX_VARIANTS)
 print("SUPERPOPS; 1000G labels file: ", SUPERPOPS)
