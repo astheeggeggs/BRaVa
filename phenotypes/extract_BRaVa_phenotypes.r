@@ -16,9 +16,9 @@ input_ukb_biomarker_file <- "data/ukb27722.csv.gz"
 superpopulation_labels_file <- "data/superpopulation_labels.tsv.gz"
 
 # Intermediates
-ICD_proposals_output <- 'data/BRaVa_ICD_proposals.tsv'
-ICD_proposals_grep_output <- 'data/BRaVa_ICD_proposals_grep.tsv'
-OPSC4_proposals_output <- 'data/BRaVa_OPCS4_proposals.tsv'
+ICD_proposals_output <- 'data/BRaVa_ICD_proposals.tsv.gz'
+ICD_proposals_grep_output <- 'data/BRaVa_ICD_proposals_grep.tsv.gz'
+OPSC4_proposals_output <- 'data/BRaVa_OPCS4_proposals.tsv.gz'
 
 # Outputs
 cts_brava_phenotypes_output <- "data/output/BRaVa_cts_phenotypes_with_superpopulation_labels_updated.tsv.gz"

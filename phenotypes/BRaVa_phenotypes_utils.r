@@ -132,10 +132,14 @@ extract_ID_and_ICD_UKB <- function(
 	return(dt)
 }
 
-extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
+extract_case_status <- function(dt_data, dt_query,
+	assume_tree=TRUE, just_tree_query=FALSE) {
 	
 	cols <- dt_query %>% select(phenotype, phenotypeID)
-	dt_data[, (cols$phenotypeID) := 0]
+	
+	if (!just_tree_query) {
+		dt_data[, (cols$phenotypeID) := 0]
+	}
 
 	simplify_query <- function(query) {
 		# Simplify to speed things up
@@ -149,7 +153,8 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 			query_tmp <- query_tmp[-match]
 
 		}
-		query <- paste0(query, collapse=" | ")
+		query <- paste0(query, collapse="|(^|\\s)")
+		query <- paste0("(^|\\s)", query)
 		return(query)
 	}
 
@@ -163,15 +168,14 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 			query <- dt_query$ICD10_control_exclude[i]
 			if (assume_tree) {
 				query <- simplify_query(query)
-				query <- gsub(" \\| ", ".* \\| ", query)
-				if (query != "") {
-					query <- gsub("$", ".*", query)
-				}
 				cat(paste0("query regular expression: ", query, "\n"))
 			}
-			ICD10_where <- grep(query, dt_data$ICD10_string)
-			cat(paste0("ICD10 control exclusions: ", length(ICD10_where), "...\n"))
-			dt_data[[phenotypeID]][ICD10_where] <- NA
+
+			if (!just_tree_query) {
+				ICD10_where <- grep(query, dt_data$ICD10_string)
+				cat(paste0("ICD10 control exclusions: ", length(ICD10_where), "...\n"))
+				dt_data[[phenotypeID]][ICD10_where] <- NA
+			}
 			dt_query$ICD10_control_exclude[i] <- query
 		}
 
@@ -180,34 +184,36 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 			query <- dt_query$ICD9_control_exclude[i]
 			if (assume_tree) {
 				query <- simplify_query(query)
-				query <- gsub(" \\| ", ".* \\| ", query)
-				if (query != "") {
-					query <- gsub("$", ".*", query)
-				}
 				cat(paste0("query regular expression: ", query, "\n"))
 			}
-			ICD9_where <- grep(query, dt_data$ICD9_string)
-			cat(paste0("ICD9 control exclusions: ", length(ICD9_where), "...\n"))
-			dt_data[[phenotypeID]][ICD9_where] <- NA
+
+			if (!just_tree_query) {
+				ICD9_where <- grep(query, dt_data$ICD9_string)
+				cat(paste0("ICD9 control exclusions: ", length(ICD9_where), "...\n"))
+				dt_data[[phenotypeID]][ICD9_where] <- NA
+			}
 			dt_query$ICD9_control_exclude[i] <- query
 		}
 
-		cat(paste0("total control exclusions count prior to adding cases: ", sum(is.na(dt_data[[phenotypeID]])), "\n"))
+		if (!just_tree_query) {
+			cat(paste0(
+				"total control exclusions count prior to adding cases: ",
+				sum(is.na(dt_data[[phenotypeID]])), "\n"))
+		}
 
 		if (dt_query$ICD10_case_include[i] != "")
 		{
 			query <- dt_query$ICD10_case_include[i]
 			if (assume_tree) {
 				query <- simplify_query(query)
-				query <- gsub(" \\| ", ".* \\| ", query)
-				if (query != "") {
-					query <- gsub("$", ".*", query)
-				}
 				cat(paste0("query regular expression: ", query, "\n"))
 			}
-			ICD10_where <- grep(query, dt_data$ICD10_string)
-			cat(paste0("ICD10 cases: ", length(ICD10_where), "...\n"))
-			dt_data[[phenotypeID]][ICD10_where] <- 1
+
+			if (!just_tree_query) {
+				ICD10_where <- grep(query, dt_data$ICD10_string)
+				cat(paste0("ICD10 cases: ", length(ICD10_where), "...\n"))
+				dt_data[[phenotypeID]][ICD10_where] <- 1
+			}
 			dt_query$ICD10_case_include[i] <- query
 		}
 
@@ -216,23 +222,27 @@ extract_case_status <- function(dt_data, dt_query, assume_tree=TRUE) {
 			query <- dt_query$ICD9_case_include[i]
 			if (assume_tree) {
 				query <- simplify_query(query)
-				query <- gsub(" \\| ", ".* \\| ", query)
-				if (query != "") {
-					query <- gsub("$", ".*", query)
-				}
 				cat(paste0("query regular expression: ", query, "\n"))
 			}
-			ICD9_where <- grep(query, dt_data$ICD9_string)
-			cat(paste0("ICD9 cases: ", length(ICD9_where), "...\n"))
-			dt_data[[phenotypeID]][ICD9_where] <- 1
+
+			if (!just_tree_query) {
+				ICD9_where <- grep(query, dt_data$ICD9_string)
+				cat(paste0("ICD9 cases: ", length(ICD9_where), "...\n"))
+				dt_data[[phenotypeID]][ICD9_where] <- 1
+			}
 			dt_query$ICD9_case_include[i] <- query
 		}
 
-		cat(paste0("total case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
-		cat(paste0("final case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
-		cat(paste0("final control exclusions count after adding cases: ", sum(is.na(dt_data[[phenotypeID]])), "\n"))
-		cat(paste0("final control count: ", sum(dt_data[[phenotypeID]] == 0, na.rm=TRUE), "\n\n"))
+		if (!just_tree_query) {
+			cat(paste0("total case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
+			cat(paste0("final case count: ", sum(dt_data[[phenotypeID]], na.rm=TRUE), "\n"))
+			cat(paste0("final control exclusions count after adding cases: ",
+				sum(is.na(dt_data[[phenotypeID]])), "\n"))
+			cat(paste0("final control count: ",
+				sum(dt_data[[phenotypeID]] == 0, na.rm=TRUE), "\n\n"))
+		}
 	}
+
 	return(list(dt_data=dt_data, dt_query=dt_query))
 }
 
@@ -350,9 +360,10 @@ munge_BRaVa_OPCS4_proposals <- function() {
 	# Replace '.'s with '' (it's an equivalent encoding for OPCS4 codes).
 	dt[, OPCS4_code := gsub("\\.", "", OPCS4_code)]
 	# Replace commas and semi-colons for pipes to get the regular expression ready.
-	dt[, OPCS4_code := gsub(",|;", " | ", OPCS4_code)]
-	# Ensure that the first and final character of the regular expression is a space.
-	dt[, OPCS4_code := gsub("^(.*)$", " \\1 ", OPCS4_code)]
+	dt[, OPCS4_code := paste0(
+		"(^|\\s)",
+		gsub(",|;", "(\\\\s|$)|(^|\\\\s)", OPCS4_code),
+		"(\\s|$)")]
 	# Remove asterisks
 	dt[, OPCS4_code := gsub("\\*", "", OPCS4_code)]
 	dt$OPCS4_code[which(is.na(dt$IOPCS4_code))] <- ""
@@ -414,6 +425,7 @@ extract_procedure_case_status <- function(dt_data, dt_query)
 		if (dt_query$OPCS4_code[i] != "")
 		{
 			query <- dt_query$OPCS4_code[i]
+			cat(paste0("query regular expression: ", query, "\n"))
 			OPCS4_where <- grep(query, dt_data$OPCS4_string)
 			cat(paste0("OPCS4 code cases: ", length(OPCS4_where), "...\n"))
 			dt_data[[phenotypeID]][OPCS4_where] <- 1
