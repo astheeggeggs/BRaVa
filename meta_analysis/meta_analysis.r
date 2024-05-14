@@ -6,7 +6,7 @@ library(argparse)
 
 # Pass a comma separated list of filenames
 tests <- c("Burden", "SKAT", "SKAT-O")
-source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
+source("meta_analysis_utils.r")
 
 # Extract the files to read in
 # Pass the name of the trait to be used in the output
