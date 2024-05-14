@@ -5,7 +5,8 @@ library(dplyr)
 # Names of the phenotypes to run
 data_dir <- "~/Repositories/BRaVa_curation/data/meta_analysis/gcloud"
 n_cases <- 100
-out_meta_results_dir <- paste0("~/Repositories/BRaVa_curation/data/meta_analysis/meta_results/n_cases_", n_cases)
+out_meta_results_dir <- paste0(
+	"~/Repositories/BRaVa_curation/data/meta_analysis/meta_results/n_cases_", n_cases)
 system(paste("mkdir -p", out_meta_results_dir))
 source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
 source("~/Repositories/BRaVa_curation/phenotypes/BRaVa_phenotypes_utils.r")
@@ -34,9 +35,9 @@ for (phe in phenotypeIDs)
 	files_gene <- (results_dt %>% filter(phenotypeID == phe))$filename
 	files_gene <- paste(files_gene, collapse=",")
 	cat(paste0("carrying out meta-analysis of ", phe, "\n"))
+	cat(paste0("\nFiles in the analysis: ", paste0(strsplit(files_gene, split=",")[[1]], collapse='\n')))
 	system(paste(
 		"Rscript meta_analysis.r",
-		"--file_paths", files_gene,
 		"--file_paths", files_gene,
 		"--no_sex_check ",
 		"--out", paste0(

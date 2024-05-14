@@ -39,6 +39,9 @@ extract_continuous_trait_counts(
 	file_out = cts_brava_phenotypes_output
 )
 
+dt_query_cts_ICD <- munge_BRaVa_cts_ICD_exclusion_proposals()
+dt_query_cts_ICD <- extract_regexp(dt_query_cts_ICD, cols = c("ICD10_exclude", "ICD9_exclude"))
+
 dt_query_ICD <- munge_BRaVa_ICD_proposals()
 fwrite(dt_query_ICD, file=ICD_proposals_output, sep='\t', quote=TRUE)
 dt_query_ICD <- fread(ICD_proposals_output)

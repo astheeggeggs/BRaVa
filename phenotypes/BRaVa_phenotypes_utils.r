@@ -15,7 +15,8 @@ extract_BRaVa_pilot_phenotypes <- function(pilot_only=TRUE) {
 	return(dt_pilot$phenotypeID)
 }
 
-munge_BRaVa_ICD_proposals <- function() {
+munge_BRaVa_ICD_proposals <- function()
+{
 	# Download and extract the case and control ICD9/10 codes from the BRaVa nominate phenotypes file
 	dt <- read_sheet("https://docs.google.com/spreadsheets/d/1YqdSyxf2OyoIYvLnDVj7NmbpebtppsgyJSq18gkVAWI/edit#gid=1716081249", sheet="ICD_Phecode", skip=3)
 	cols <- c(
@@ -23,6 +24,7 @@ munge_BRaVa_ICD_proposals <- function() {
 		"ICD10_control_exclude", "ICD10_case_include",
 		"ICD9_control_exclude", "ICD9_case_include")
 	dt <- dt[, cols, with=FALSE]
+	
 	# Remove empty rows
 	dt <- dt %>% filter(!is.na(Description))
 	names(dt) <- c("phenotype", "phenotypeID", "ICD10_control_exclude", "ICD10_case_include", "ICD9_control_exclude", "ICD9_case_include")
@@ -62,6 +64,45 @@ munge_BRaVa_ICD_proposals <- function() {
 	dt$ICD10_case_include[which(is.na(dt$ICD10_case_include))] <- ""
 	dt$ICD9_control_exclude[which(is.na(dt$ICD9_control_exclude))] <- ""
 	dt$ICD9_case_include[which(is.na(dt$ICD9_case_include))] <- ""
+
+	return(dt)
+}
+
+munge_BRaVa_cts_ICD_exclusion_proposals <- function()
+{
+	# Download and extract the case and control ICD9/10 codes from the BRaVa nominate phenotypes file
+	dt <- read_sheet("https://docs.google.com/spreadsheets/d/1YqdSyxf2OyoIYvLnDVj7NmbpebtppsgyJSq18gkVAWI/edit#gid=1716081249",
+		sheet="ICD_Phecode_cts_exclusion")
+	cols <- c("Description", "Phenotype ID", "ICD10_exclude", "ICD9_exclude")
+	dt <- dt[, cols, with=FALSE]
+
+	# Remove empty rows
+	dt <- dt %>% filter(!is.na(Description))
+	names(dt) <- c("phenotype", "phenotypeID", "ICD10_exclude", "ICD9_exclude")
+	dt <- data.table(dt)
+
+	# Remove any extra spaces
+	dt[, ICD10_exclude := gsub("[[:space:]]", "", ICD10_exclude)]
+	dt[, ICD9_exclude := gsub("[[:space:]]", "", ICD9_exclude)]
+	
+	# Replace '.'s with '' (it's an equivalent encoding for ICD codes).
+	dt[, ICD10_exclude := gsub("\\.", "", ICD10_exclude)]
+	dt[, ICD9_exclude := gsub("\\.", "", ICD9_exclude)]
+
+	# Replace commas for pipes to get the regular expression ready.
+	dt[, ICD10_exclude := gsub(",|;", " | ", ICD10_exclude)]
+	dt[, ICD9_exclude := gsub(",|;", " | ", ICD9_exclude)]
+
+	# Ensure that the first and final character of the regular expression is a space.
+	dt[, ICD10_exclude := gsub("^(.*)$", " \\1 ", ICD10_exclude)]
+	dt[, ICD9_exclude := gsub("^(.*)$", " \\1 ", ICD9_exclude)]
+
+	# Remove asterisks
+	dt[, ICD10_exclude := gsub("\\*", "", ICD10_exclude)]
+	dt[, ICD9_exclude := gsub("\\*", "", ICD9_exclude)]
+
+	dt$ICD10_exclude[which(is.na(dt$ICD10_exclude))] <- ""
+	dt$ICD9_exclude[which(is.na(dt$ICD9_exclude))] <- ""
 
 	return(dt)
 }
@@ -132,6 +173,36 @@ extract_ID_and_ICD_UKB <- function(
 	return(dt)
 }
 
+simplify_query <- function(query)
+{
+	# Simplify to speed things up
+	query_tmp <- gsub("^ (.*) ", "\\1", query)
+	query_tmp <- strsplit(query_tmp, split=" \\| ")[[1]]
+	query_tmp <- query_tmp[order(nchar(query_tmp))]
+	query <- c()
+	while (length(query_tmp) > 0) {
+		query <- c(query, query_tmp[1])
+		match <- grep(query[length(query)], query_tmp)
+		query_tmp <- query_tmp[-match]
+
+	}
+	query <- paste0(query, collapse="|(^|\\s)")
+	query <- paste0("(^|\\s)", query)
+	return(query)
+}
+
+extract_regexp <- function(dt, cols)
+{
+	for (col in cols) {
+		for (i in 1:nrow(dt)) {
+			current_regexp <- dt[[column_name]][i]
+			dt[[column_name]][i] <- ifelse(
+				current_regexp == "", "", simplify_query(current_regexp))
+		}
+	}
+	return(dt)
+}
+
 extract_case_status <- function(dt_data, dt_query,
 	assume_tree=TRUE, just_tree_query=FALSE) {
 	
@@ -139,23 +210,6 @@ extract_case_status <- function(dt_data, dt_query,
 	
 	if (!just_tree_query) {
 		dt_data[, (cols$phenotypeID) := 0]
-	}
-
-	simplify_query <- function(query) {
-		# Simplify to speed things up
-		query_tmp <- gsub("^ (.*) ", "\\1", query)
-		query_tmp <- strsplit(query_tmp, split=" \\| ")[[1]]
-		query_tmp <- query_tmp[order(nchar(query_tmp))]
-		query <- c()
-		while (length(query_tmp) > 0) {
-			query <- c(query, query_tmp[1])
-			match <- grep(query[length(query)], query_tmp)
-			query_tmp <- query_tmp[-match]
-
-		}
-		query <- paste0(query, collapse="|(^|\\s)")
-		query <- paste0("(^|\\s)", query)
-		return(query)
 	}
 
 	for (i in 1:nrow(cols)) {
