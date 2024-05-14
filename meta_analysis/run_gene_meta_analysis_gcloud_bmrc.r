@@ -57,7 +57,7 @@ main <- function(args)
 		cat(paste0("\nFiles in the analysis: ",
 			paste0(strsplit(files_gene, split=",")[[1]], collapse='\n'), "\n"))
 		system(paste(
-			"sbatch run_meta_analysis_qq_gcloud_bmrc.sh",
+			"sbatch run_meta_analysis_gcloud_bmrc.sh",
 			files_gene, out))
 		cat(paste0("submitted meta-analysis of ", phe, " completed\n\n"))
 	}
