@@ -48,9 +48,7 @@ main <- function(args)
             }
         }
 
-        dt_list[[file]] <- fread(cmd = ifelse(file_info$gz,
-            paste0("gzcat ", folder, file),
-            paste0("cat ", folder, file)))
+        dt_list[[file]] <- fread(paste0(folder, file))
         dt_list[[file]]$dataset <- file_info$dataset
         dt_list[[file]]$ancestry <- file_info$ancestry
 
