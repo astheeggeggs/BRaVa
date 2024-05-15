@@ -43,7 +43,7 @@ main <- function(args)
         }
     }
 
-    width_plot <- ifelse(is.null(args$type, 8, 4))
+    width_plot <- ifelse(is.null(args$type), 8, 4)
 
     pdf(file=args$out, width=width_plot, height=4)
     for (file in files) {
