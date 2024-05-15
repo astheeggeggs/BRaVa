@@ -36,6 +36,7 @@ main <- function(args)
 		file_gene <- grep(phe, dir(data_dir, full.names=TRUE), value=TRUE)
 		out <- paste0(out_plot_dir, "/", phe, "_gene_meta_analysis_qq.pdf")
 		cat(paste0("carrying out plotting of gene QQ for ", phe, "\n"))
+		cat(paste0("using file: ", file_gene, "\n"))
 		system(paste(
 			"sbatch run_meta_analysis_qq_gcloud_bmrc.sh",
 			file_gene, out))
@@ -50,6 +51,8 @@ parser$add_argument("--meta_analysis_results_folder",
 parser$add_argument("--out_dir",
 	default="/well/lindgren/dpalmer/BRaVa_meta-analysis_outputs/plots",
 	required=FALSE, help="Output folder path")
+parser$add_argument("--n_cases", default=100, required=FALSE,
+	help="Minimum number of cases")
 parser$add_argument("--phenotypeID", required=FALSE, default=NULL,
 	help="The phenotype ID to plot. If null, this script will plot everything in the folder.")
 args <- parser$parse_args()

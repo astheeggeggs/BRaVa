@@ -6,4 +6,4 @@
 META_FILE_GENE=$1
 OUT=$2
 
-Rscript meta_analysis_qq.r --meta_analysis_results_folder $META_FILE_GENE --out $OUT --include_gene_names
+Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --out $OUT --include_gene_names
