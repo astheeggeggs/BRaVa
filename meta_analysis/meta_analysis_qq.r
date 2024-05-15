@@ -43,7 +43,9 @@ main <- function(args)
         }
     }
 
-    pdf(file=args$out, width=8, height=8)
+    width_plot <- ifelse(is.null(args$type, 8, 4))
+    
+    pdf(file=args$out, width=width_plot, height=4)
     for (file in files) {
         phe <- gsub(".*/(.*)_meta.*", "\\1", file)
         phe_plot <- gsub("_", " ", gsub("_$", "", str_trim(gsub("[[:space:]_]+", "\\_", phe))))
