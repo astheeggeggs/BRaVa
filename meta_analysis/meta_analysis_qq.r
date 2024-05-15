@@ -6,18 +6,23 @@ library(ggplot2)
 library(latex2exp)
 library(argparse)
 
-source("~/Repositories/BRaVa_curation/QC/utils/pretty_plotting.r")
-gene_name_mapping_file <- "~/Repositories/BRaVa_curation/data/gene_mapping.txt.gz"
+source("../QC/utils/pretty_plotting.r")
+gene_name_mapping_file <- "../data/gene_mapping.txt.gz"
 T <- 6 # -log10(P) threshold for inclusion on the plots
 
 main <- function(args)
 {
     ribbon_p <- 0.95
-    files <- dir(args$meta_analysis_results_folder, full.names=TRUE)
-    files_to_include <- grep("meta", dir(args$meta_analysis_results_folder))
-    files <- files[files_to_include]
-    print(files)
-    print(args)
+
+    if (!is.null(args$meta_analysis_results_folder)) {
+        files <- dir(args$meta_analysis_results_folder, full.names=TRUE)
+        files_to_include <- grep("meta", dir(args$meta_analysis_results_folder))
+        files <- files[files_to_include]
+    } else if (!is.null(args$meta_analysis_results_file)) {
+        files <- args$meta_analysis_results_file
+    } else {
+        stop("Neither a folder or single file of results have been provided to plot")
+    }
 
     if (args$include_gene_names) {
         if (file.exists(gene_name_mapping_file)) {
@@ -43,7 +48,7 @@ main <- function(args)
         phe <- gsub(".*/(.*)_meta.*", "\\1", file)
         phe_plot <- gsub("_", " ", gsub("_$", "", str_trim(gsub("[[:space:]_]+", "\\_", phe))))
         cat(paste0(phe_plot, "...\n"))
-        dt_meta <- fread(cmd = paste("gzcat", file), key="Region")
+        dt_meta <- fread(file, key="Region")
         dt_meta[, Pvalue := -log10(Pvalue)]
         if(args$include_gene_names) {
             dt_meta <- merge(dt_meta, dt_genes, all.x=TRUE)
@@ -136,19 +141,18 @@ main <- function(args)
 # Add arguments
 parser <- ArgumentParser()
 parser$add_argument("--meta_analysis_results_folder",
-    default="~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/meta_results_n_cases_100", required=FALSE,
+    default=NULL, required=FALSE,
     help="Folder containing the meta-analysis results files")
-parser$add_argument("--out", default="~/Repositories/BRaVa_curation/plots/meta_analysis/meta_analysis_qq_100.pdf", required=FALSE,
-    help="Output filepath")
+parser$add_argument("--meta_analysis_results_file",
+    default=NULL, required=FALSE,
+    help="Meta-analysis results file")
+parser$add_argument("--out",
+    default="meta_analysis_qq_100.pdf",
+    required=FALSE, help="Output filepath")
 parser$add_argument("--type", default=NULL, required=FALSE,
     help="Which meta-analysis results to plot {'Stouffer', 'weighted Fisher'}")
 parser$add_argument("--include_gene_names", default=FALSE, action='store_true',
     help="Do you want to highlight the most significant genes with their gene-names?")
 args <- parser$parse_args()
-
-# Debug
-# args <- list()
-# args$meta_analysis_results_folder <- "../data/meta_analysis/gcloud"
-# args$meta_analysis_results_path_regexp <- "*cleaned*"
 
 main(args)
