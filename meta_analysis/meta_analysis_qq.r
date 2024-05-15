@@ -75,10 +75,11 @@ main <- function(args)
         groups <- setdiff(unique(dt_meta_to_plot$Group), "Cauchy")
         for (m in max_MAF_groups) {
             for (g in groups) {
-                max_MAF_plot <- ifelse(
-                    grepl("e", as.character(m)),
-                    gsub("([0-9\\.]+)e(-)*0*([1-9][0-9]*)", "$\\1\\\\times 10^{\\2\\3}$", as.character(m)),
-                    paste0("$", as.character(m), "$"))
+                # max_MAF_plot <- ifelse(
+                #     grepl("e", as.character(m)),
+                #     gsub("([0-9\\.]+)e(-)*0*([1-9][0-9]*)", "$\\1\\\\times 10^{\\2\\3}$", as.character(m)),
+                #     paste0("$", as.character(m), "$"))
+                max_MAF_plot <- as.character(m)
                 variant_class_plot <- gsub("_", " ", gsub("[\\|;]", ",\n", g))
                 cex_labels <- 2
                 dt_current <- dt_meta_to_plot %>% filter(Group==g, max_MAF==m)
