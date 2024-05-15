@@ -29,8 +29,8 @@ main <- function(args)
             dt_genes <- fread(gene_name_mapping_file)
             if (!(all(c("Gene stable ID", "Gene name") %in% names(dt_genes)))) {
                 warning(paste0("gene name mapping file does not contain 'Gene stable ID' ",
-                    "(ensembl ID *without* version) and 'Gene name' (gene symbol for plotting), "
-                    "reverting to not plitting gene-names"))
+                    "(ensembl ID *without* version) and 'Gene name' (gene symbol for plotting), ",
+                    "reverting to not plotting gene-names"))
                  args$include_gene_names <- FALSE
             } else {
                 names(dt_genes)[which(names(dt_genes) == "Gene stable ID")] <- "Region"
