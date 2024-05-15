@@ -46,6 +46,11 @@ main <- function(args)
             if (file_info$n_controls < case_control_threshold) {
                 next
             }
+        } else {
+            file_info$n <- as.integer(file_info$n)
+            if (file_info$n < case_control_threshold) {
+                next
+            }
         }
 
         dt_list[[file]] <- fread(paste0(folder, file))
