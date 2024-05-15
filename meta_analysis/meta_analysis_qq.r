@@ -44,7 +44,7 @@ main <- function(args)
     }
 
     width_plot <- ifelse(is.null(args$type, 8, 4))
-    
+
     pdf(file=args$out, width=width_plot, height=4)
     for (file in files) {
         phe <- gsub(".*/(.*)_meta.*", "\\1", file)
@@ -87,7 +87,7 @@ main <- function(args)
                 dt_current <- dt_meta_to_plot %>% filter(Group==g, max_MAF==m)
                 p <- create_pretty_qq_plot(
                     plot_title=phe_plot,
-                    plot_subtitle=paste0(variant_class_plot, "; max MAF = ", TeX(max_MAF_plot)),
+                    plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot), #TeX(max_MAF_plot)),
                     cex_labels=cex_labels,
                     dt_current,
                     aes(x=Pvalue_expected, y=Pvalue, color=class),
