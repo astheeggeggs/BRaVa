@@ -195,8 +195,8 @@ extract_regexp <- function(dt, cols)
 {
 	for (col in cols) {
 		for (i in 1:nrow(dt)) {
-			current_regexp <- dt[[column_name]][i]
-			dt[[column_name]][i] <- ifelse(
+			current_regexp <- dt[[col]][i]
+			dt[[col]][i] <- ifelse(
 				current_regexp == "", "", simplify_query(current_regexp))
 		}
 	}
