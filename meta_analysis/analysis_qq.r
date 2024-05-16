@@ -127,7 +127,7 @@ main <- function(args)
             plot_title=phe_plot,
             plot_subtitle="Cauchy",
             cex_labels=2,
-            dt_to_plot %>% filter(Group == "Cauchy", class == "Burden", Pvalue > T),
+            dt_to_plot %>% filter(Group == "Cauchy"),
             aes(x=Pvalue_expected, y=Pvalue, color=class),
             save_figure=FALSE,
             x_label=TeX("$-\\log_{10}(P_{expected})$"), 
@@ -138,6 +138,14 @@ main <- function(args)
             height=120,
             by_chr=FALSE,
             print_p=FALSE)
+
+        if(args$include_gene_names) {
+            p <- p + geom_label_repel(data=dt_to_plot %>% 
+                filter(Group=="Cauchy", class == "Burden", Pvalue > T),
+                aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
+                color = 'grey30', segment.color = 'grey50',
+                size=cex_labels, segment.size=0.1, show.legend = FALSE)
+        }
         print(p)
     }
     dev.off()
