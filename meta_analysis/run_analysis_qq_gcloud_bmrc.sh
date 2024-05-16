@@ -6,4 +6,5 @@
 FILES_GENE=$1
 OUT=$2
 
+echo "Rscript analysis_qq.r --analysis_results_file $FILE_GENE --include_gene_names --out $OUT"
 Rscript analysis_qq.r --analysis_results_file $FILE_GENE --include_gene_names --out $OUT

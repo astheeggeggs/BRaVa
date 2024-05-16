@@ -41,14 +41,21 @@ main <- function(args)
 	for (phe in phes) {
 		for (dataset in datasets) {
 			for (anc in ancestries) {
-				file_gene <- grep(paste0(dataset, "\\..*",  phe, ".*", anc), dir(data_dir, full.names=TRUE, recursive=TRUE), value=TRUE)
+				file_gene <- grep(
+					paste0(".*cleaned.*", dataset, "\\..*",  phe, ".*", anc),
+					dir(data_dir, full.names=TRUE, recursive=TRUE), value=TRUE)
 				out <- paste0(out_plot_dir, "/", dataset, "_", phe, "_", anc, "_gene_meta_analysis_qq.pdf")
 				cat(paste0("carrying out plotting of gene QQ for ", phe, "\n"))
-				cat(paste0("using file: ", file_gene, "\n"))
-				system(paste(
-					"sbatch run_analysis_qq_gcloud_bmrc.sh",
-					file_gene, out))
-				cat(paste0("submitted meta-analysis QQ plotting of ", phe, "\n\n"))
+				if (length(file_gene == 1)) {
+					cat(paste0("using file: ", file_gene, "\n"))
+					system(paste(
+						"sbatch run_analysis_qq_gcloud_bmrc.sh",
+						file_gene, out))
+					cat(paste0("submitted meta-analysis QQ plotting of ", phe, "\n\n"))
+				}
+				if (length(file_gene) > 1) {
+					stop("Multiple matches to this (phenotyes, ancestry, biobank) tuple")
+				}
 			}
 		}
 	}	
@@ -56,7 +63,7 @@ main <- function(args)
 
 # Add arguments
 parser <- ArgumentParser()
-parser$add_argument("--analysis_results_folder",
+parser$add_argument("--analysis_results_folder", required=FALSE,
 	default="/well/lindgren/dpalmer/BRaVa_meta-analysis_inputs")
 parser$add_argument("--out_dir",
 	default="/well/lindgren/dpalmer/BRaVa_meta-analysis_outputs/plots_biobank_specific",
