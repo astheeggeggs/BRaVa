@@ -124,7 +124,7 @@ main <- function(args)
                     p <- p + facet_wrap(~type)
                     print(p)
                 } else {
-                    if ("Inverse variance weighted" %in% dt_meta_to_plot$type) {
+                    if (!("Inverse variance weighted" %in% dt_meta_to_plot$type)) {
                         stop("cannot plot, inverse variance weighted meta-analysis is not present")
                     }
 
