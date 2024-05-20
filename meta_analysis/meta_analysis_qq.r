@@ -44,7 +44,7 @@ main <- function(args)
     }
 
     width_plot <- ifelse(is.null(args$type), 12, 4)
-    width_plot <- ifelse(args$burden_only_plot, 4, width_plot)
+    width_plot <- ifelse(args$burden_only_plot, 6, width_plot)
 
     pdf(file=args$out, width=width_plot, height=4)
     for (file in files) {
