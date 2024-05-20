@@ -44,6 +44,7 @@ main <- function(args)
     }
 
     width_plot <- ifelse(is.null(args$type), 12, 4)
+    width_plot <- ifelse(args$burden_only_plot, 4, width_plot)
 
     pdf(file=args$out, width=width_plot, height=4)
     for (file in files) {
@@ -123,11 +124,16 @@ main <- function(args)
                     p <- p + facet_wrap(~type)
                     print(p)
                 } else {
+                    if ("Inverse variance weighted" %in% dt_meta_to_plot$type) {
+                        stop("cannot plot, inverse variance weighted meta-analysis is not present")
+                    }
+
                     p <- create_pretty_qq_plot(
                         plot_title=phe_plot,
                         plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
                         cex_labels=cex_labels,
-                        rbind(dt_meta_to_plot %>% filter(Group==g, max_MAF==m, class=="Burden"), dummy_data, fill=TRUE),
+                        rbind(dt_meta_to_plot %>% filter(
+                            Group==g, max_MAF==m, class=="Burden", type=="Inverse variance weighted"), dummy_data, fill=TRUE),
                         aes(x=Pvalue_expected, y=Pvalue, color=color),
                         save_figure=FALSE,
                         x_label=TeX("$-\\log_{10}(P_{expected})$"), 
@@ -200,7 +206,7 @@ parser$add_argument("--out",
     default="meta_analysis_qq_100.pdf",
     required=FALSE, help="Output filepath")
 parser$add_argument("--type", default=NULL, required=FALSE,
-    help="Which meta-analysis results to plot {'Stouffer', 'weighted Fisher', 'inverse variance weighted'}")
+    help="Which meta-analysis results to plot {'Stouffer', 'Weighted Fisher', 'Inverse variance weighted'}")
 parser$add_argument("--include_gene_names", default=FALSE, action='store_true',
     help="Do you want to highlight the most significant genes with their gene-names?")
 parser$add_argument("--burden_only_plot", default=FALSE, action='store_true',
