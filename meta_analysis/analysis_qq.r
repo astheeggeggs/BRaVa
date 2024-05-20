@@ -60,8 +60,8 @@ main <- function(args)
         }
         cat(paste0(phe_plot, "...\n"))
         dt <- fread(file)
-        if (burden_only_plot) {
-            dt <- dt %>% select(-Pvalue, Pvalue_SKAT) %>% 
+        if (args$burden_only_plot) {
+            dt <- dt %>% select(-c("Pvalue", "Pvalue_SKAT")) %>% 
                 rename(Pvalue = Pvalue_Burden) %>%
                 mutate(Pvalue = -log10(Pvalue), class = "Burden") %>% 
                 select(Region, Group, max_MAF, Pvalue, BETA_Burden, SE_Burden, class)
@@ -99,6 +99,19 @@ main <- function(args)
         	)
         )
 
+        if (args$burden_only_plot) {
+            dt_to_plot <- dt_to_plot %>% mutate(OR = exp(BETA_Burden))
+            dt_to_plot$color <- cut(dt_to_plot$OR,
+                breaks = c(-Inf, 0.95, 1, 1.05, Inf),
+                labels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+            dt_to_plot$color <- factor(dt_to_plot$color,
+                levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+            dummy_data <- data.frame(Pvalue_expected = NA, Pvalue = NA,
+                color = factor(c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"),
+                levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+            )
+        }
+
         max_MAF_groups <- setdiff(unique(dt_to_plot$max_MAF), "Cauchy")
         groups <- setdiff(unique(dt_to_plot$Group), "Cauchy")
         for (m in max_MAF_groups) {
@@ -111,7 +124,8 @@ main <- function(args)
                 variant_class_plot <- gsub("_", " ", gsub("[\\|;]", ",\n", g))
                 cex_labels <- 2
 
-                if (!burden_only_plot) {
+                if (!args$burden_only_plot)
+                {
                     p <- create_pretty_qq_plot(
                         plot_title=phe_plot,
                         plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
@@ -134,21 +148,8 @@ main <- function(args)
                             size=cex_labels, segment.size=0.1, show.legend = FALSE)
                     }
                     print(p)
+
                 } else {
-                    dt_to_plot <- dt_to_plot %>% mutate(OR = exp(BETA_Burden))
-                    dt_to_plot$color <- cut(dt_to_plot$OR, breaks = c(-Inf, 0.95, 1, 1.05, Inf), labels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
-                    dt_to_plot$color <- factor(dt_to_plot$color, levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
-
-
-                    dummy_data <- data.frame(
-                        Pvalue_expected = NA,
-                        Pvalue = NA,
-                        color = factor(c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"), levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
-                    )
-
-                    # Combine original data with dummy data
-                    dt_to_plot <- rbind(dt_to_plot, dummy_data, fill=TRUE)
-
                     p <- create_pretty_qq_plot(
                         plot_title=phe_plot,
                         plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
@@ -184,7 +185,6 @@ main <- function(args)
                             size=cex_labels, segment.size=0.1, show.legend = FALSE)
                     }
                     print(p)
-
                 }
             }
         }
@@ -228,6 +228,8 @@ parser$add_argument("--out", default="biobank_qq.pdf", required=FALSE,
     help="Output filepath")
 parser$add_argument("--include_gene_names", default=FALSE, action='store_true',
     help="Do you want to highlight the most significant genes with their gene-names?")
+parser$add_argument("--burden_only_plot", default=FALSE, action='store_true',
+    help="Do you want to create plots containing just the burden p-values together with colour-coded effect direction?")
 args <- parser$parse_args()
 
 main(args)
