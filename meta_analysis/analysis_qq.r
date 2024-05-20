@@ -53,7 +53,7 @@ main <- function(args)
         if (file_info$binary) {
             phe_plot <- paste0(phe_plot,
                 "\nn cases = ", prettyNum(file_info$n_cases, big.mark=",", trim=TRUE),
-                ", n controls = ", prettyNum(file_info$file_info$n_controls, big.mark=",", trim=TRUE)
+                ", n controls = ", prettyNum(file_info$n_controls, big.mark=",", trim=TRUE)
             )
         } else {
             phe_plot <- paste0(phe_plot, "\nn = ", prettyNum(file_info$n, big.mark=",", trim=TRUE))

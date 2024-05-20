@@ -73,6 +73,19 @@ main <- function(args)
         	)
         )
 
+        if (args$burden_only_plot) {
+            dt_meta_to_plot <- dt_meta_to_plot %>% mutate(OR = exp(BETA_Burden))
+            dt_meta_to_plot$color <- cut(dt_meta_to_plot$OR,
+                breaks = c(-Inf, 0.95, 1, 1.05, Inf),
+                labels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+            dt_meta_to_plot$color <- factor(dt_meta_to_plot$color,
+                levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+            dummy_data <- data.frame(Pvalue_expected = NA, Pvalue = NA,
+                color = factor(c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"),
+                levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+            )
+        }
+
         max_MAF_groups <- setdiff(unique(dt_meta_to_plot$max_MAF), "Cauchy")
         groups <- setdiff(unique(dt_meta_to_plot$Group), "Cauchy")
         for (m in max_MAF_groups) {
@@ -84,32 +97,68 @@ main <- function(args)
                 max_MAF_plot <- as.character(m)
                 variant_class_plot <- gsub("_", " ", gsub("[\\|;]", ",\n", g))
                 cex_labels <- 2
-                dt_current <- dt_meta_to_plot %>% filter(Group==g, max_MAF==m)
-                p <- create_pretty_qq_plot(
-                    plot_title=phe_plot,
-                    plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot), #TeX(max_MAF_plot)),
-                    cex_labels=cex_labels,
-                    dt_current,
-                    aes(x=Pvalue_expected, y=Pvalue, color=class),
-                    save_figure=FALSE,
-                    x_label=TeX("$-\\log_{10}(P_{expected})$"), 
-                    y_label=TeX("$-\\log_{10}(P_{observed})$"),
-                    key_cols=c("class", "Pvalue"),
-                    aes_ribbon = aes(ymin=clower, ymax=cupper),
-                    width=170,
-                    height=120,
-                    by_chr=FALSE,
-                    print_p=FALSE
-                )
-                
-                if(args$include_gene_names) {
-                    p <- p + geom_label_repel(data=dt_current %>% filter(class == "Burden", Pvalue > T),
-                        aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
-                        color = 'grey30', segment.color = 'grey50',
-                        size=cex_labels, segment.size=0.1, show.legend = FALSE)
-                }   
-                p <- p + facet_wrap(~type)
-                print(p)
+
+                if (!args$burden_only_plot) {
+                    p <- create_pretty_qq_plot(
+                        plot_title=phe_plot,
+                        plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot), #TeX(max_MAF_plot)),
+                        cex_labels=cex_labels,
+                        dt_meta_to_plot %>% filter(Group==g, max_MAF==m),
+                        aes(x=Pvalue_expected, y=Pvalue, color=class),
+                        save_figure=FALSE,
+                        x_label=TeX("$-\\log_{10}(P_{expected})$"), 
+                        y_label=TeX("$-\\log_{10}(P_{observed})$"),
+                        key_cols=c("class", "Pvalue"),
+                        aes_ribbon = aes(ymin=clower, ymax=cupper),
+                        print_p=FALSE
+                    )
+                    
+                    if(args$include_gene_names) {
+                        p <- p + geom_label_repel(data=dt_meta_to_plot %>% 
+                                filter(Group==g, max_MAF==m, class == "Burden", Pvalue > T),
+                            aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
+                            color = 'grey30', segment.color = 'grey50',
+                            size=cex_labels, segment.size=0.1, show.legend = FALSE)
+                    }   
+                    p <- p + facet_wrap(~type)
+                    print(p)
+                } else {
+                    p <- create_pretty_qq_plot(
+                        plot_title=phe_plot,
+                        plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
+                        cex_labels=cex_labels,
+                        rbind(dt_meta_to_plot %>% filter(Group==g, max_MAF==m, class=="Burden"), dummy_data, fill=TRUE),
+                        aes(x=Pvalue_expected, y=Pvalue, color=color),
+                        save_figure=FALSE,
+                        x_label=TeX("$-\\log_{10}(P_{expected})$"), 
+                        y_label=TeX("$-\\log_{10}(P_{observed})$"),
+                        key_cols=c("class", "Pvalue"),
+                        aes_ribbon = aes(ymin=clower, ymax=cupper),
+                        print_p=FALSE
+                    )
+
+                    p <- p + scale_color_manual(
+                        values = c(
+                            "< 0.95" = "blue3",
+                            "[0.95, 1)" = "cornflowerblue",
+                            "[1, 1.05]" = "indianred3",
+                            "> 1.05" = "red"),
+                        labels = c("< 0.95" = "< 0.95",
+                            "[0.95, 1)" = "[0.95, 1)",
+                            "[1, 1.05]" = "[1, 1.05]",
+                            "> 1.05" = "> 1.05"),
+                        name = "Odds ratio",  aesthetics = c("colour", "fill")
+                    ) + guides(colour = guide_legend(override.aes = list(size=5)))
+                   
+                    if(args$include_gene_names) {
+                        p <- p + geom_label_repel(data=dt_meta_to_plot %>% 
+                            filter(Group==g, max_MAF==m, class == "Burden", Pvalue > T),
+                            aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
+                            color = 'grey30', segment.color = 'grey50',
+                            size=cex_labels, segment.size=0.1, show.legend = FALSE)
+                    }
+                    print(p)
+                }
             }
         }
 
@@ -124,9 +173,6 @@ main <- function(args)
             y_label=TeX("$-\\log_{10}(P_{observed})$"),
             key_cols=c("class", "Pvalue"),
             aes_ribbon = aes(ymin=clower, ymax=cupper),
-            width=170,
-            height=120,
-            by_chr=FALSE,
             print_p=FALSE)
 
         if(args$include_gene_names) {

@@ -84,7 +84,7 @@ main <- function(args)
             "N_eff", Pvalue_col, "Pvalue",
             two_tail = ifelse(test == "Burden", TRUE, FALSE),
             input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
-        mutate(Stat = NA, type="weighted Fisher")
+        mutate(Stat = NA, type="Weighted Fisher")
 
         # Stouffer's Z - Make sure P-values match, Stat= weighted_Z_Burden_Stouffer
         dt_meta[[test]][["Stouffer"]] <- run_stouffer(dt %>% group_by(Region, Group, max_MAF),
@@ -97,7 +97,8 @@ main <- function(args)
             # And also run the inverse-variance weighted meta-analysis
             dt_meta[[test]][["inverse_variance_weighted"]] <- run_inv_var(
                 dt %>% group_by(Region, Group, max_MAF), "BETA_Burden", "SE_Burden",
-                "BETA_Burden", "SE_Burden", "Pvalue")
+                "BETA_Burden", "SE_Burden", "Pvalue") %>%
+            mutate(type="Inverse variance weighted")
         }
 
         dt_meta[[test]] <- rbindlist(dt_meta[[test]], use.names=TRUE, fill=TRUE) %>% mutate(class=test)
@@ -124,7 +125,7 @@ main <- function(args)
         # Weighted Fisher's meta-analysis of p-values
         dt_meta_cauchy[[test]][["weighted Fisher"]] <- run_weighted_fisher(
             dt_cauchy[[test]] %>% group_by(Region),
-            "N_eff", "Pvalue", "Pvalue") %>% mutate(Stat = NA, type="weighted Fisher")
+            "N_eff", "Pvalue", "Pvalue") %>% mutate(Stat = NA, type="Weighted Fisher")
         # Stouffer's Z - Make sure P-values match, Stat = weighted_Z_Burden_Stouffer
         dt_meta_cauchy[[test]][["Stouffer"]] <- run_stouffer(dt_cauchy[[test]] %>% group_by(Region),
             "N_eff", "Stat", "Pvalue", "Pvalue") %>% mutate(type="Stouffer")
