@@ -92,10 +92,18 @@ main <- function(args)
             two_tail = ifelse(test == "Burden", TRUE, FALSE),
             input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
         mutate(type="Stouffer")
-        dt_meta[[test]] <- rbindlist(dt_meta[[test]], use.names=TRUE) %>% mutate(class=test)
+
+        if (test == "Burden") {
+            # And also run the inverse-variance weighted meta-analysis
+            dt_meta[[test]][["inverse_variance_weighted"]] <- run_inv_var(
+                dt %>% group_by(Region, Group, max_MAF), "BETA_Burden", "SE_Burden",
+                "BETA_Burden", "SE_Burden", "Pvalue")
+        }
+
+        dt_meta[[test]] <- rbindlist(dt_meta[[test]], use.names=TRUE, fill=TRUE) %>% mutate(class=test)
     }
 
-    dt_meta <- rbindlist(dt_meta)
+    dt_meta <- rbindlist(dt_meta, fill=TRUE)
 
     dt_cauchy <- list()
     dt_n_eff <- unique(dt %>% select(Region, dataset, ancestry, N_eff))
@@ -123,7 +131,7 @@ main <- function(args)
         dt_meta_cauchy[[test]] <- rbindlist(dt_meta_cauchy[[test]], use.names=TRUE) %>% mutate(class=test)
     }
     dt_meta_cauchy <- rbindlist(dt_meta_cauchy)
-    dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"))
+    dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"), fill=TRUE)
     fwrite(dt_meta, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
  
     # Finally, carry out heterogeneity test

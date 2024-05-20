@@ -2,9 +2,10 @@
 library(data.table)
 library(dplyr)
 library(argparse)
+library(rlang)
 
 source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
-
+options(warn = 2)
 main <- function(args)
 {
 	folder_to_check <- args$folder
@@ -153,6 +154,43 @@ main <- function(args)
 
 				if (all((unique(dt$Group) %in% correct_names) | is.na(unique(dt$Group)))) {
 					cat("all annotations have the correct names...\n")
+					# Include the Cauchy results if the rows are not present
+					if (!("Cauchy" %in% unique(dt$Group)))
+					{
+						cat("Cauchy pvalues are missing, evaluate them...\n")
+						dt_cauchy <- dt %>% filter(Group != "Cauchy", !is.na(Pvalue)) %>%
+							group_by(Region) %>% summarise(
+							Pvalue = cauchy_combination(Pvalue),
+							Pvalue_Burden = cauchy_combination(Pvalue_Burden),
+							Pvalue_SKAT = cauchy_combination(Pvalue_SKAT),
+							number_of_pvals = n()
+						) %>% mutate(
+							Pvalue = ifelse(Pvalue > 1e+15,
+								(1/Pvalue) / pi,
+								pcauchy(Pvalue, lower.tail=FALSE)
+							),
+							Pvalue_Burden = ifelse(Pvalue_Burden > 1e+15,
+								(1/Pvalue_Burden) / pi,
+								pcauchy(Pvalue_Burden, lower.tail=FALSE)
+							),
+							Pvalue_SKAT = ifelse(Pvalue_SKAT > 1e+15,
+								(1/Pvalue_SKAT) / pi,
+								pcauchy(Pvalue_SKAT, lower.tail=FALSE)
+							)
+						) %>% mutate(
+							Pvalue = ifelse(Pvalue > (1 - 1e-10),
+								(1 - 1/number_of_pvals), Pvalue
+							),
+							Pvalue_Burden = ifelse(Pvalue_Burden > (1 - 1e-10),
+								(1 - 1/number_of_pvals), Pvalue_Burden
+							),
+							Pvalue_SKAT = ifelse(Pvalue_SKAT > (1 - 1e-10),
+								(1 - 1/number_of_pvals), Pvalue_SKAT
+							)
+						) %>% select(-number_of_pvals) %>% mutate(Group = "Cauchy")
+						dt <- rbind(dt, dt_cauchy, fill=TRUE)
+					}
+
 					out_f <- gsub(folder, paste0(args$out_folder, "/"), new_f)
 					if (args$write) {
 						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
@@ -164,15 +202,17 @@ main <- function(args)
 
 			if (type == "variant")
 			{
+				cat(paste0("reading in: ", new_f, "\n"))
 				dt <- fread(new_f, nrows=1000)
 				rename <- FALSE
 				marker_fix <- FALSE
+				rename_rsid <- FALSE
 
 				for (n in names(renaming_variant_header_list)) {
 					if (!(n %in% names(dt))) {
 						cat(paste("attempting to rename to", n,"\n"))
-						if (sum(renaming_header_list[[n]] %in% names(dt)) == 1) {
-							to_rename <- which(names(dt) %in% renaming_header_list[[n]])
+						if (sum(renaming_variant_header_list[[n]] %in% names(dt)) == 1) {
+							to_rename <- which(names(dt) %in% renaming_variant_header_list[[n]])
 							cat(paste("renamed:", names(dt)[to_rename], "->", n, "\n"))
 							names(dt)[to_rename] <- n
 							rename <- TRUE
@@ -188,16 +228,38 @@ main <- function(args)
 				# end if need be, so we don't need to worry about them being retained.
 				dt <- dt %>% filter(CHR != "UR")
 
+				# Check CHR naming
+				if (!all(grepl("^chr[0-9X]+", dt[['CHR']]))) {
+					cat("chromosome naming does not match the expected format...\n")
+					if (all(grepl("^[0-9XYMT]+$", dt[['CHR']]))) {
+						dt[['CHR']] <- paste0('chr', dt[['CHR']])
+						cat("successfully renamed chromosome column\n")
+					} else {
+						stop("chromosomes could not be renamed")
+					}
+				}
+
 				if (!all(grepl("^chr[0-9X]*:[0-9]+:[ACGT]+:[ACGT]+$", dt[['MarkerID']])))
 				{
 					cat(paste0("marker ID does not match the expected format...\n"))
 					cat(paste0("testing to see if it matches other likely formats...\n"))
-					if (all(grepl(
-						"^chr[0-9X]*[:,/\\_][0-9]+[:,/\\_][ACGT]+[:,/\\_][ACGT]+$",
+
+					# Determine if any of the variants are listed as rsids. If they are, then we convert to
+					# chr:pos:ref:alt
+					if (any(grepl("^rs[0-9]+", dt[['MarkerID']]))) {
+						rename_rsid <- TRUE
+					} else if (all(grepl(
+						"^chr[0-9X]+[:,/\\_][0-9]+[:,/\\_][ACGT]+[:,/\\_][ACGT]+$",
 						dt[['MarkerID']]))) {
 						cat(paste0("it matches an alternative potential format, attempting to fix\n"))
 						rename <- TRUE
 						marker_fix <- TRUE
+					} else if (all(grepl("^[0-9X]+[:,/\\_][0-9]+[:,/\\_][ACGT]+[:,/\\_][ACGT]+$",
+						dt[['MarkerID']]))) {
+						cat(paste0("it matches an alternative potential format, attempting to fix\n"))
+						rename <- TRUE
+						marker_fix <- TRUE
+						dt[['MarkerID']] <- paste0("chr", dt[['MarkerID']])
 					} else {
 						stop("cannot determine the correct renaming of the variant IDs, please check the file")
 					}
@@ -205,7 +267,21 @@ main <- function(args)
 
 				out_f <- gsub(folder, paste0(args$out_folder, "/"), new_f)
 				if (args$write) {
-					if (rename) {
+					if (rename_rsid) {
+						cat("running complete rename, using CHR:POS:A1:A2 as the MarkerID\n")
+						new_names <- names(dt)
+						dt <- fread(new_f)
+						cat(paste0("total number of variants is: ", nrow(dt), "\n"))
+						names(dt) <- new_names
+						dt <- dt %>% filter(CHR != "UR", !grepl("\\*", MarkerID))
+						cat(paste0("following removal of ultra-rares and strangely code variants,",
+							" total number of variants is: ", nrow(dt), "\n"))
+						dt <- data.table(dt)
+						dt[, MarkerID := paste(CHR, POS, Allele1, Allele2, sep=":")]
+						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
+						cat("file written to:\n")
+						cat(paste0(out_f, "\n"))
+					} else if (rename) {
 						new_names <- names(dt)
 						dt <- fread(new_f)
 						names(dt) <- new_names

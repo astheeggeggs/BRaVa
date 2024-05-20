@@ -43,7 +43,7 @@ main <- function(args)
         }
     }
 
-    width_plot <- ifelse(is.null(args$type), 8, 4)
+    width_plot <- ifelse(is.null(args$type), 12, 4)
 
     pdf(file=args$out, width=width_plot, height=4)
     for (file in files) {
@@ -154,7 +154,7 @@ parser$add_argument("--out",
     default="meta_analysis_qq_100.pdf",
     required=FALSE, help="Output filepath")
 parser$add_argument("--type", default=NULL, required=FALSE,
-    help="Which meta-analysis results to plot {'Stouffer', 'weighted Fisher'}")
+    help="Which meta-analysis results to plot {'Stouffer', 'weighted Fisher', 'inverse variance weighted'}")
 parser$add_argument("--include_gene_names", default=FALSE, action='store_true',
     help="Do you want to highlight the most significant genes with their gene-names?")
 args <- parser$parse_args()

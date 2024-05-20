@@ -26,29 +26,29 @@ renaming_header_list <- list(
 )
 
 renaming_variant_header_list <- list(
-	`CHR` = c("chr"),
-	`POS` = c("pos"),
-	`MarkerID` = c("varID"),
-	`Allele1` = c("A1"),
-	`Allele2` = c("A2"),
-	`AC_Allele2` = c("AC_A2"),
-	`AF_Allele2` = c("AF_A2"),
-	`MissingRate` = c("missing"),
+	`CHR` = c("chr", "chromosome"),
+	`POS` = c("pos", "BP", "bp", "base_pair_location"),
+	`MarkerID` = c("varID", "variant_id"),
+	`Allele1` = c("A1", "other_allele"),
+	`Allele2` = c("A2", "effect_allele"),
+	`AC_Allele2` = c("AC_A2", "effect_allele_count"),
+	`AF_Allele2` = c("AF_A2", "effect_allele_frequency"),
+	`MissingRate` = c("missing", "missing_rate"),
 	`BETA` = c("beta"),
-	`SE` = c("se"),
-	`Tstat` = c("t_stat"),
-	`var` = c("Var"),
-	`p.value` = c("P_value"),
-	`p.value.NA` = c("P_value.NA"),
-	`Is.SPA` = c("SPA"),
-	`AF_case` = c("case_AF"),
-	`AF_ctrl` = c("ctrl_AF"),
+	`SE` = c("se", "standard_error"),
+	`Tstat` = c("t_stat", "t_statistic", "tstat"),
+	`var` = c("Var", "variance"),
+	`p.value` = c("P_value", "p_value"),
+	`p.value.NA` = c("P_value.NA", "p_value_na"),
+	`Is.SPA` = c("SPA", "is_spa_test"),
+	`AF_case` = c("case_AF", "allele_freq_case"),
+	`AF_ctrl` = c("ctrl_AF", "allele_freq_ctrl"),
 	`N_case` = c("n_case"),
 	`N_ctrl` = c("n_control", "n_ctrl"),
 	`N_case_hom` = c("n_case_hom"),
 	`N_case_het` = c("n_case_het"),
-	`N_ctrl_hom` = c("n_control_hom"),
-	`N_ctrl_het` = c("n_control_hom"),
+	`N_ctrl_hom` = c("n_control_hom", "n_ctrl_hom"),
+	`N_ctrl_het` = c("n_control_het", "n_ctrl_het"),
 	`N` = c("n")
 )
 
@@ -104,22 +104,22 @@ renaming_plot_group_list <- list(
 
 file_check_information <- list(
 	dataset = list(
-		`all-of-us` = c("all-of-us"),
+		`all-of-us` = c("all-of-us", "All-of-Us", "All-of-us"),
 		`alspac` = c("alspac"),
-		`biome` = c("biome"),
-		`bbj` = c("bbj"),
-		`ckb` = c("ckb"),
-		`ccpm` = c("ccpm"),
-		`decode` = c("decode"),
-		`egcut` = c("egcut"),
-		`dan-rav` = c("dan-rav"),
+		`biome` = c("biome", "BioMe"),
+		`bbj` = c("bbj", "BBJ"),
+		`ckb` = c("ckb", "CKB"),
+		`ccpm` = c("ccpm", "CCPM"),
+		`decode` = c("decode", "DECODE"),
+		`egcut` = c("egcut", "EGCUT"),
+		`dan-rav` = c("dan-rav", "Dan-RaV"),
 		`genes-and-health` = c("genes-and-health", "GnH", "Genes-and-Health"),
-		`gel` = c("gel"),
-		`mgbb` = c("mgbb"),
-		`pmbb` = c("pmbb"),
-		`qatar-genomes` = c("qatar-genomes"),
-		`uk-biobank` = c("uk-biobank"),
-		`viking-genes` = c("viking-genes") 
+		`gel` = c("gel", "GEL"),
+		`mgbb` = c("mgbb", "MGBB"),
+		`pmbb` = c("pmbb", "PMBB"),
+		`qatar-genomes` = c("qatar-genomes", "Qatar-genomes"),
+		`uk-biobank` = c("uk-biobank", "ukbb"),
+		`viking-genes` = c("viking-genes", "Viking-Genes") 
 	),
 	phenotype = list(
 		`AAA` = c("AAA", "Abdominal aortic aneurysm (AAA)", "Abdominal_aortic_aneurysm_(AAA)"),
@@ -593,6 +593,24 @@ run_weighted_fisher <- function(
 	return(result)
 }
 
+run_inv_var <- function(
+	grouped_dt, input_beta_name, input_se_name, 
+	output_beta_meta, output_se_meta,
+	output_meta_pvalue
+) {
+	return(
+		grouped_dt %>% 
+		mutate(weight = 1/(.data[[input_se_name]]**2)) %>%
+		mutate(effs_inv_var = .data[[input_beta_name]] * weight) %>%
+		summarise(
+			"{output_beta_meta}" := sum(effs_inv_var) / sum(weight),
+			"{output_se_meta}" := sqrt(1/sum(weight))) %>% 
+		mutate("{output_meta_pvalue}" := 2 * pnorm(
+				abs(.data[[output_beta_meta]] / .data[[output_se_meta]]), lower=FALSE)
+		)
+	)
+}
+
 create_gene_data_table <- function(group_files_lines)
 {
 	group_files_variant_line <- group_files_lines[1]
@@ -770,23 +788,6 @@ run_cauchy <- function(
 				.data[[output_meta_pvalue]] > (1 - 1e-10),
 				(1 - 1/number_of_pvals), .data[[output_meta_pvalue]]
 			)
-		)
-	)
-}
-
-run_inv_var <- function(
-	grouped_dt, beta_meta_name, se_meta_name,
-	input_beta, input_SE, output_meta_pvalue
-) {
-	return(
-		grouped_dt %>% 
-		mutate(weight = 1/(.data[[input_SE]]**2)) %>%
-		mutate(effs_inv_var = .data[[input_beta]] * weight) %>%
-		summarise(
-			"{beta_meta_name}" := sum(effs_inv_var) / sum(weight),
-			"{se_meta_name}" := sqrt(1/sum(weight)),
-			"{output_meta_pvalue}" := 2 * dnorm(
-				abs(.data[[beta_meta_name]] / .data[[se_meta_name]]))
 		)
 	)
 }

@@ -50,13 +50,27 @@ main <- function(args)
         file_info <- extract_file_info(gsub(".*/(.*)", "\\1", file))
         phe_plot <- gsub("_", " ", gsub("_$", "", str_trim(gsub("[[:space:]_]+", "\\_", file_info$phenotype))))
         phe_plot <- paste(file_info$dataset, file_info$ancestry, phe_plot, sep=", ")
-        phe_plot <- paste0(phe_plot, "\n(", file_info$n_cases, " cases, ", file_info$n_controls, " controls)")
+        if (file_info$binary) {
+            phe_plot <- paste0(phe_plot,
+                "\nn cases = ", prettyNum(file_info$n_cases, big.mark=",", trim=TRUE),
+                ", n controls = ", prettyNum(file_info$file_info$n_controls, big.mark=",", trim=TRUE)
+            )
+        } else {
+            phe_plot <- paste0(phe_plot, "\nn = ", prettyNum(file_info$n, big.mark=",", trim=TRUE))
+        }
         cat(paste0(phe_plot, "...\n"))
         dt <- fread(file)
-        dt <- melt(dt, id.vars = c("Region", "Group", "max_MAF"),
-                measure.vars = c("Pvalue", "Pvalue_Burden", "Pvalue_SKAT"),
-                value.name = "Pvalue", variable.name = "class") %>% 
-        mutate(Pvalue = -log10(Pvalue))
+        if (burden_only_plot) {
+            dt <- dt %>% select(-Pvalue, Pvalue_SKAT) %>% 
+                rename(Pvalue = Pvalue_Burden) %>%
+                mutate(Pvalue = -log10(Pvalue), class = "Burden") %>% 
+                select(Region, Group, max_MAF, Pvalue, BETA_Burden, SE_Burden, class)
+        } else {
+            dt <- melt(dt, id.vars = c("Region", "Group", "max_MAF"),
+                    measure.vars = c("Pvalue", "Pvalue_Burden", "Pvalue_SKAT"),
+                    value.name = "Pvalue", variable.name = "class") %>% 
+            mutate(Pvalue = -log10(Pvalue))
+        }
         dt <- data.table(dt)
         setkey(dt, "Region")
 
@@ -94,35 +108,87 @@ main <- function(args)
                 #     gsub("([0-9\\.]+)e(-)*0*([1-9][0-9]*)", "$\\1\\\\times 10^{\\2\\3}$", as.character(m)),
                 #     paste0("$", as.character(m), "$"))
                 max_MAF_plot <- as.character(m)
-                variant_class_plot <- gsub("_", " ", gsub("[\\|;]", ", ", g))
+                variant_class_plot <- gsub("_", " ", gsub("[\\|;]", ",\n", g))
                 cex_labels <- 2
-                p <- create_pretty_qq_plot(
-                    plot_title=phe_plot,
-                    plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
-                    cex_labels=cex_labels,
-                    dt_to_plot %>% filter(Group==g, max_MAF==m),
-                    aes(x=Pvalue_expected, y=Pvalue, color=class),
-                    save_figure=FALSE,
-                    x_label=TeX("$-\\log_{10}(P_{expected})$"), 
-                    y_label=TeX("$-\\log_{10}(P_{observed})$"),
-                    key_cols=c("class", "Pvalue"),
-                    aes_ribbon = aes(ymin=clower, ymax=cupper),
-                    width=170,
-                    height=120,
-                    by_chr=FALSE,
-                    print_p=FALSE
-                )
 
-                if(args$include_gene_names) {
-                    p <- p + geom_label_repel(data=dt_to_plot %>% 
-                        filter(Group==g, max_MAF==m, class == "Burden", Pvalue > T),
-                        aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
-                        color = 'grey30', segment.color = 'grey50',
-                        size=cex_labels, segment.size=0.1, show.legend = FALSE)
+                if (!burden_only_plot) {
+                    p <- create_pretty_qq_plot(
+                        plot_title=phe_plot,
+                        plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
+                        cex_labels=cex_labels,
+                        dt_to_plot %>% filter(Group==g, max_MAF==m),
+                        aes(x=Pvalue_expected, y=Pvalue, color=class),
+                        save_figure=FALSE,
+                        x_label=TeX("$-\\log_{10}(P_{expected})$"), 
+                        y_label=TeX("$-\\log_{10}(P_{observed})$"),
+                        key_cols=c("class", "Pvalue"),
+                        aes_ribbon = aes(ymin=clower, ymax=cupper),
+                        print_p=FALSE
+                    )
+
+                    if(args$include_gene_names) {
+                        p <- p + geom_label_repel(data=dt_to_plot %>% 
+                            filter(Group==g, max_MAF==m, class == "Burden", Pvalue > T),
+                            aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
+                            color = 'grey30', segment.color = 'grey50',
+                            size=cex_labels, segment.size=0.1, show.legend = FALSE)
+                    }
+                    print(p)
+                } else {
+                    dt_to_plot <- dt_to_plot %>% mutate(OR = exp(BETA_Burden))
+                    dt_to_plot$color <- cut(dt_to_plot$OR, breaks = c(-Inf, 0.95, 1, 1.05, Inf), labels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+                    dt_to_plot$color <- factor(dt_to_plot$color, levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+
+
+                    dummy_data <- data.frame(
+                        Pvalue_expected = NA,
+                        Pvalue = NA,
+                        color = factor(c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"), levels = c("< 0.95", "[0.95, 1)", "[1, 1.05]", "> 1.05"))
+                    )
+
+                    # Combine original data with dummy data
+                    dt_to_plot <- rbind(dt_to_plot, dummy_data, fill=TRUE)
+
+                    p <- create_pretty_qq_plot(
+                        plot_title=phe_plot,
+                        plot_subtitle=paste0(variant_class_plot, "; max MAF = ", max_MAF_plot),
+                        cex_labels=cex_labels,
+                        rbind(dt_to_plot %>% filter(Group==g, max_MAF==m, class=="Burden"), dummy_data, fill=TRUE),
+                        aes(x=Pvalue_expected, y=Pvalue, color=color),#, size=size),
+                        save_figure=FALSE,
+                        x_label=TeX("$-\\log_{10}(P_{expected})$"), 
+                        y_label=TeX("$-\\log_{10}(P_{observed})$"),
+                        key_cols=c("class", "Pvalue"),
+                        aes_ribbon = aes(ymin=clower, ymax=cupper),
+                        print_p=FALSE
+                    )
+
+                    p <- p + scale_color_manual(
+                        values = c(
+                            "< 0.95" = "blue3",
+                            "[0.95, 1)" = "cornflowerblue",
+                            "[1, 1.05]" = "indianred3",
+                            "> 1.05" = "red"),
+                        labels = c("< 0.95" = "< 0.95",
+                            "[0.95, 1)" = "[0.95, 1)",
+                            "[1, 1.05]" = "[1, 1.05]",
+                            "> 1.05" = "> 1.05"),
+                        name = "Odds ratio",  aesthetics = c("colour", "fill")
+                    ) + guides(colour = guide_legend(override.aes = list(size=5)))
+                   
+                    if(args$include_gene_names) {
+                        p <- p + geom_label_repel(data=dt_to_plot %>% 
+                            filter(Group==g, max_MAF==m, class == "Burden", Pvalue > T),
+                            aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
+                            color = 'grey30', segment.color = 'grey50',
+                            size=cex_labels, segment.size=0.1, show.legend = FALSE)
+                    }
+                    print(p)
+
                 }
-                print(p)
             }
         }
+
         p <- create_pretty_qq_plot(
             plot_title=phe_plot,
             plot_subtitle="Cauchy",
@@ -134,9 +200,6 @@ main <- function(args)
             y_label=TeX("$-\\log_{10}(P_{observed})$"),
             key_cols=c("class", "Pvalue"),
             aes_ribbon = aes(ymin=clower, ymax=cupper),
-            width=170,
-            height=120,
-            by_chr=FALSE,
             print_p=FALSE)
 
         if(args$include_gene_names) {
