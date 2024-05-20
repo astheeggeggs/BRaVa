@@ -8,3 +8,4 @@ OUT=$2
 
 echo "Rscript analysis_qq.r --analysis_results_file $FILE_GENE --include_gene_names --out $OUT"
 Rscript analysis_qq.r --analysis_results_file $FILE_GENE --include_gene_names --out $OUT
+Rscript analysis_qq.r --analysis_results_file $FILE_GENE --burden_only_plot --include_gene_names --out burden_only_$OUT
