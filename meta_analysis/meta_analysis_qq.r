@@ -203,6 +203,8 @@ parser$add_argument("--type", default=NULL, required=FALSE,
     help="Which meta-analysis results to plot {'Stouffer', 'weighted Fisher', 'inverse variance weighted'}")
 parser$add_argument("--include_gene_names", default=FALSE, action='store_true',
     help="Do you want to highlight the most significant genes with their gene-names?")
+parser$add_argument("--burden_only_plot", default=FALSE, action='store_true',
+    help="Do you want to create plots containing just the burden p-values together with colour-coded effect direction?")
 args <- parser$parse_args()
 
 main(args)

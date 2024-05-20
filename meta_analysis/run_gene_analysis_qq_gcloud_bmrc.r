@@ -38,10 +38,6 @@ main <- function(args)
 
 	ancestries <- c("AFR", "AMR", "EAS", "EUR", "SAS")
 
-	# datasets <- "all-of-us"
-	# ancestries <- "EUR"
-	# phes <- "AMD"
-
 	for (phe in phes) {
 		for (dataset in datasets) {
 			for (anc in ancestries) {
