@@ -612,6 +612,8 @@ run_inv_var <- function(
 	# pvalues of the data with standard errors of 0 to 0.
 	dt$Pvalue[which(is.na(dt$Pvalue) & (dt$SE_Burden == Inf))] <- 1
 	dt$Pvalue[which(is.na(dt$Pvalue) & (dt$SE_Burden == 0))] <- 0
+
+	return(dt)
 }
 
 create_gene_data_table <- function(group_files_lines)

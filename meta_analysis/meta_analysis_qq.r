@@ -52,7 +52,7 @@ main <- function(args)
         phe_plot <- gsub("_", " ", gsub("_$", "", str_trim(gsub("[[:space:]_]+", "\\_", phe))))
         cat(paste0(phe_plot, "...\n"))
         dt_meta <- fread(file, key="Region")
-        dt_meta[, Pvalue := -log10(Pvalue)]
+        dt_meta[, Pvalue := ifelse(Pvalue == 0, 320, -log10(Pvalue))]
         if(args$include_gene_names) {
             dt_meta <- merge(dt_meta, dt_genes, all.x=TRUE)
         }
