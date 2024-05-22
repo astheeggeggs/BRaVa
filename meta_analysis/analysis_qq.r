@@ -63,13 +63,13 @@ main <- function(args)
         if (args$burden_only_plot) {
             dt <- dt %>% select(-c("Pvalue", "Pvalue_SKAT")) %>% 
                 rename(Pvalue = Pvalue_Burden) %>%
-                mutate(Pvalue = -log10(Pvalue), class = "Burden") %>% 
+                mutate(Pvalue = ifelse(Pvalue == 0, 320, -log10(Pvalue)), class = "Burden") %>% 
                 select(Region, Group, max_MAF, Pvalue, BETA_Burden, SE_Burden, class)
         } else {
             dt <- melt(dt, id.vars = c("Region", "Group", "max_MAF"),
                     measure.vars = c("Pvalue", "Pvalue_Burden", "Pvalue_SKAT"),
                     value.name = "Pvalue", variable.name = "class") %>% 
-            mutate(Pvalue = -log10(Pvalue))
+            mutate(Pvalue = ifelse(Pvalue == 0, 320, -log10(Pvalue)))
         }
         dt <- data.table(dt)
         setkey(dt, "Region")
