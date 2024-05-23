@@ -39,7 +39,7 @@ main <- function(args)
 				file_gene <- grep(
 					paste0(".*cleaned.*", dataset, "\\..*",  phe, ".*", anc, ".*\\.gene\\..*"),
 					dir(data_dir, full.names=TRUE, recursive=TRUE), value=TRUE)
-				out <- gsub(".txt.gz$", ".extra_cauchy.txt.gz", file_gene)
+				out <- gsub(".txt.gz$", ".extra_cauchy.gz", file_gene)
 				cat(paste0("carrying additional Cauchy combinations for ", phe, "\n"))
 				if (length(file_gene == 1)) {
 					cat(paste0("using file: ", file_gene, "\n"))

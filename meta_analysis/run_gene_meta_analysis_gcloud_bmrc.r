@@ -29,7 +29,11 @@ main <- function(args)
 		biobank_results_files <- dir(paste0(data_dir, "/", biobank, "/cleaned/gene"))
 		biobank_results_files_full <- dir(paste0(data_dir, "/", biobank, "/cleaned/gene"), full.names=TRUE)
 		results <- lapply(biobank_results_files, extract_file_info)
-		results_dt_list[[biobank]] <- data.table(filename = biobank_results_files_full, phenotypeID = sapply(results, `[[`, 4), pop = sapply(results, `[[`, 7))
+		results_dt_list[[biobank]] <- data.table(
+			filename = biobank_results_files_full,
+			phenotypeID = sapply(results, `[[`, 4),
+			pop = sapply(results, `[[`, 7)
+		)
 	}
 
 	results_dt <- rbindlist(results_dt_list)
@@ -51,6 +55,9 @@ main <- function(args)
 
 	for (phe in phes) {
 		files_gene <- (results_dt %>% filter(phenotypeID == phe))$filename
+		if (any(grepl("extra_cauchy", files_gene))) {
+			files_gene <- files_gene[grep("extra_cauchy", file_gene)]
+		}
 		files_gene <- paste(files_gene, collapse=",")
 		out <- paste0(out_meta_results_dir, "/", phe, "_gene_meta_analysis_", n_cases, "_cutoff.tsv.gz")
 		cat(paste0("carrying out meta-analysis of ", phe, "\n"))

@@ -6,4 +6,4 @@
 FILE=$1
 OUT=$2
 
-Rscript cauchy_combination_of_results.r --file_path $FILE --out $OUT
+Rscript cauchy_combination_of_results.r --results_file $FILE --out $OUT
