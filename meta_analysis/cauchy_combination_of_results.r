@@ -63,7 +63,6 @@ main <- function(args)
 		select(-number_of_pvals) %>% mutate(Group = n)
 	}
 	dt_cauchy <- rbindlist(dt_cauchy_list)
-	dt <- rbind(dt, dt_cauchy, fill=TRUE)
 	fwrite(dt_cauchy, file=args$out, sep='\t')
 }
 

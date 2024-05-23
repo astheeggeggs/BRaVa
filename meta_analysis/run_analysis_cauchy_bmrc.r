@@ -37,7 +37,7 @@ main <- function(args)
 		for (dataset in datasets) {
 			for (anc in ancestries) {
 				file_gene <- grep(
-					paste0(".*cleaned.*", dataset, "\\..*",  phe, ".*", anc, ".*\\.gene\\..*"),
+					paste0(".*cleaned.*", dataset, "\\..*",  phe, ".*", anc, ".*\\.gene\\..*.txt.gz$"),
 					dir(data_dir, full.names=TRUE, recursive=TRUE), value=TRUE)
 				out <- gsub(".txt.gz$", ".extra_cauchy.gz", file_gene)
 				cat(paste0("carrying additional Cauchy combinations for ", phe, "\n"))
