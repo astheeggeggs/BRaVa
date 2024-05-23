@@ -30,8 +30,6 @@ results_dt <- rbindlist(results_dt_list)
 pilot_phenotypes <- extract_BRaVa_pilot_phenotypes()
 phenotypeIDs <- intersect(pilot_phenotypes, unique(results_dt$phenotypeID))
 
-phenotypeIDs <- phe[1]
-
 for (phe in phenotypeIDs)
 {
 	files_gene <- (results_dt %>% filter(phenotypeID == phe))$filename
