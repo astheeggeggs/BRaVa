@@ -34,8 +34,8 @@ main <- function(args)
 
 	for (phe in phes) {
 		file_gene <- grep(phe, dir(data_dir, full.names=TRUE), value=TRUE)
-		if (any(grepl("extra_cauchy", files_gene))) {
-			file_gene <- files_gene[-grep("extra_cauchy", file_gene)]
+		if (any(grepl("extra_cauchy", file_gene))) {
+			file_gene <- file_gene[-grep("extra_cauchy", file_gene)]
 		}
 		out <- paste0(out_plot_dir, "/", phe, "_gene_meta_analysis_qq.pdf")
 		cat(paste0("carrying out plotting of gene QQ for ", phe, "\n"))
@@ -50,7 +50,8 @@ main <- function(args)
 # Add arguments
 parser <- ArgumentParser()
 parser$add_argument("--meta_analysis_results_folder",
-	default="/well/lindgren/dpalmer/BRaVa_meta-analysis_outputs/gene/n_cases_100")
+	default="/well/lindgren/dpalmer/BRaVa_meta-analysis_outputs/gene/n_cases_100",
+	required=FALSE)
 parser$add_argument("--out_dir",
 	default="/well/lindgren/dpalmer/BRaVa_meta-analysis_outputs/plots",
 	required=FALSE, help="Output folder path")

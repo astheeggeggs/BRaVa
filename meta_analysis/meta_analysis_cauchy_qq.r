@@ -13,6 +13,7 @@ T <- 6 # -log10(P) threshold for inclusion on the plots
 main <- function(args)
 {
     ribbon_p <- 0.95
+    cex_labels <- 2
 
     if (!is.null(args$meta_analysis_results_folder)) {
         files <- dir(args$meta_analysis_results_folder, full.names=TRUE)
@@ -80,7 +81,7 @@ main <- function(args)
             p <- create_pretty_qq_plot(
                 plot_title=phe_plot,
                 plot_subtitle=paste0("Cauchy: ", g),
-                cex_labels=2,
+                cex_labels=cex_labels,
                 dt_meta_to_plot %>% filter(Group == g),
                 aes(x=Pvalue_expected, y=Pvalue, color=class),
                 save_figure=FALSE,
