@@ -44,7 +44,7 @@ main <- function(args)
         }
     }
 
-    width_plot <- ifelse(is.null(args$type), 12, 4)
+    width_plot <- ifelse(is.null(args$type), 8, 4)
     width_plot <- ifelse(args$burden_only_plot, 6, width_plot)
 
     pdf(file=args$out, width=width_plot, height=4)
@@ -93,7 +93,7 @@ main <- function(args)
 
             if(args$include_gene_names) {
                 p <- p + geom_label_repel(data=dt_meta_to_plot %>% 
-                    filter(Group == "Cauchy", class == "Burden", Pvalue > T),
+                    filter(Group == g, class == "Burden", Pvalue > T),
                     aes(label=labels), box.padding = 0.5, label.padding=0.1, point.padding = 0.2,
                     color = 'grey30', segment.color = 'grey50',
                     size=cex_labels, segment.size=0.1, show.legend = FALSE)
