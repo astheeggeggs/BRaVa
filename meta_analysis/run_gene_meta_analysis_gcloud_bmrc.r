@@ -37,6 +37,7 @@ main <- function(args)
 	}
 
 	results_dt <- rbindlist(results_dt_list)
+	results_dt <- results_dt %>% filter(!(filename %in% grep("\\.extra_cauchy\\.", filename, value=TRUE)))
 
 	if (is.null(phe)) {
 		phes <- c(

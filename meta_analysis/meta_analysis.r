@@ -72,51 +72,67 @@ main <- function(args)
         Pvalue_Burden = ifelse(Pvalue_Burden > 0.99, 0.99, Pvalue_Burden)
     )
 
-    dt_meta <- list()
-    for (test in tests)
-    {
-        dt_meta[[test]] <- list()
-        Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))
-        
-        # Weighted Fisher's meta-analysis of p-values
-        dt_meta[[test]][["weighted Fisher"]] <- run_weighted_fisher(
-            dt %>% group_by(Region, Group, max_MAF),
-            "N_eff", Pvalue_col, "Pvalue",
-            two_tail = ifelse(test == "Burden", TRUE, FALSE),
-            input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
-        mutate(Stat = NA, type="Weighted Fisher")
-
-        # Stouffer's Z - Make sure P-values match, Stat= weighted_Z_Burden_Stouffer
-        dt_meta[[test]][["Stouffer"]] <- run_stouffer(dt %>% group_by(Region, Group, max_MAF),
-            "N_eff", "Stat", Pvalue_col, "Pvalue",
-            two_tail = ifelse(test == "Burden", TRUE, FALSE),
-            input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
-        mutate(type="Stouffer")
-
-        if (test == "Burden") {
-            # And also run the inverse-variance weighted meta-analysis
-            dt_meta[[test]][["inverse_variance_weighted"]] <- run_inv_var(
-                dt %>% group_by(Region, Group, max_MAF), "BETA_Burden", "SE_Burden",
-                "BETA_Burden", "SE_Burden", "Pvalue") %>%
-            mutate(type="Inverse variance weighted")
-        }
-
-        dt_meta[[test]] <- rbindlist(dt_meta[[test]], use.names=TRUE, fill=TRUE) %>% mutate(class=test)
-    }
-
-    dt_meta <- rbindlist(dt_meta, fill=TRUE)
-
-    dt_cauchy <- list()
     dt_n_eff <- unique(dt %>% select(Region, dataset, ancestry, N_eff))
     setkeyv(dt_n_eff, c("Region", "dataset", "ancestry", "N_eff"))
-    for (test in tests) {
-        cat(paste0(test, "..."))
-        Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))        
-        dt_cauchy[[test]] <- run_cauchy(dt %>% group_by(Region, dataset, ancestry),
-            "N_eff", "Stat", Pvalue_col, "Pvalue") %>% mutate(type="Cauchy")
-        dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
+    cauchy_only <- ifelse(grepl("\\.extra_cauchy\\.", files[1]), TRUE, FALSE)
+
+    if (!cauchy_only) {
+        dt_meta <- list()
+        for (test in tests)
+        {
+            dt_meta[[test]] <- list()
+            Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))
+            
+            # Weighted Fisher's meta-analysis of p-values
+            dt_meta[[test]][["weighted Fisher"]] <- run_weighted_fisher(
+                dt %>% group_by(Region, Group, max_MAF),
+                "N_eff", Pvalue_col, "Pvalue",
+                two_tail = ifelse(test == "Burden", TRUE, FALSE),
+                input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
+            mutate(Stat = NA, type="Weighted Fisher")
+
+            # Stouffer's Z - Make sure P-values match, Stat= weighted_Z_Burden_Stouffer
+            dt_meta[[test]][["Stouffer"]] <- run_stouffer(dt %>% group_by(Region, Group, max_MAF),
+                "N_eff", "Stat", Pvalue_col, "Pvalue",
+                two_tail = ifelse(test == "Burden", TRUE, FALSE),
+                input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
+            mutate(type="Stouffer")
+
+            if (test == "Burden") {
+                # And also run the inverse-variance weighted meta-analysis
+                dt_meta[[test]][["inverse_variance_weighted"]] <- run_inv_var(
+                    dt %>% group_by(Region, Group, max_MAF), "BETA_Burden", "SE_Burden",
+                    "BETA_Burden", "SE_Burden", "Pvalue") %>%
+                mutate(type="Inverse variance weighted")
+            }
+
+            dt_meta[[test]] <- rbindlist(dt_meta[[test]], use.names=TRUE, fill=TRUE) %>% mutate(class=test)
+        }
+
+        dt_meta <- rbindlist(dt_meta, fill=TRUE)
+
+        # This is evaluating Cauchy ourselves, for everything
+        dt_cauchy <- list()
+        for (test in tests) {
+            cat(paste0(test, "..."))
+            Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))        
+            dt_cauchy[[test]] <- run_cauchy(dt %>% group_by(Region, dataset, ancestry),
+                "N_eff", "Stat", Pvalue_col, "Pvalue") %>% mutate(type="Cauchy")
+            dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
+        }
+        cat("\n")
+    } else {
+        dt_cauchy <- list()
+        for (test in tests) {
+            cat(paste0(test, "..."))
+            Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))  
+            dt_cauchy[[test]] <- dt %>% 
+                select(Region, Group, dataset, ancestry, .data[[Pvalue_col]], N_eff) %>%
+                rename(Pvalue = .data[[Pvalue_col]])
+            dt_cauchy[[test]] <- data.table(dt_cauchy[[test]], key=c(c("Region", "dataset", "ancestry", "N_eff")))
+            dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
+        }
     }
-    cat("\n")
 
     dt_meta_cauchy <- list()
     for (test in tests)
@@ -124,22 +140,27 @@ main <- function(args)
         dt_meta_cauchy[[test]] <- list()
         # Weighted Fisher's meta-analysis of p-values
         dt_meta_cauchy[[test]][["weighted Fisher"]] <- run_weighted_fisher(
-            dt_cauchy[[test]] %>% group_by(Region),
+            dt_cauchy[[test]] %>% group_by(Region, Group),
             "N_eff", "Pvalue", "Pvalue") %>% mutate(Stat = NA, type="Weighted Fisher")
         # Stouffer's Z - Make sure P-values match, Stat = weighted_Z_Burden_Stouffer
-        dt_meta_cauchy[[test]][["Stouffer"]] <- run_stouffer(dt_cauchy[[test]] %>% group_by(Region),
+        dt_meta_cauchy[[test]][["Stouffer"]] <- run_stouffer(dt_cauchy[[test]] %>% group_by(Region, Group),
             "N_eff", "Stat", "Pvalue", "Pvalue") %>% mutate(type="Stouffer")
         dt_meta_cauchy[[test]] <- rbindlist(dt_meta_cauchy[[test]], use.names=TRUE) %>% mutate(class=test)
     }
     dt_meta_cauchy <- rbindlist(dt_meta_cauchy)
-    dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"), fill=TRUE)
-    fwrite(dt_meta, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
- 
-    # Finally, carry out heterogeneity test
-    dt_het <- run_heterogeneity(
-        dt %>% group_by(Region, Group, max_MAF),
-        "N_eff", "BETA_Burden", "BETA_Burden_meta")
 
+    if (!cauchy_only)
+    {
+        dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"), fill=TRUE)
+        fwrite(dt_meta, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
+     
+        # Finally, carry out heterogeneity test
+        dt_het <- run_heterogeneity(
+            dt %>% group_by(Region, Group, max_MAF),
+            "N_eff", "BETA_Burden", "BETA_Burden_meta")
+    } else {
+        fwrite(dt_meta_cauchy, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
+    }
 }
 
 # Add arguments

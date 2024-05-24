@@ -27,6 +27,7 @@ for (biobank in biobanks)
 }
 
 results_dt <- rbindlist(results_dt_list)
+results_dt <- results_dt %>% filter(-grep("\\.extra_cauchy\\.", filename))
 pilot_phenotypes <- extract_BRaVa_pilot_phenotypes()
 phenotypeIDs <- intersect(pilot_phenotypes, unique(results_dt$phenotypeID))
 
