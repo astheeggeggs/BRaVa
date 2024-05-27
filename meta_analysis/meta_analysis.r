@@ -80,6 +80,7 @@ main <- function(args)
         dt_meta <- list()
         for (test in tests)
         {
+            cat(paste0(test, "...\n"))
             dt_meta[[test]] <- list()
             Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))
             
@@ -144,13 +145,14 @@ main <- function(args)
     } else {
         dt_cauchy <- list()
         for (test in tests) {
-            cat(paste0(test, "..."))
+            cat(paste0(test, " Cauchy combination..."))
             Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))  
             dt_cauchy[[test]] <- dt %>% 
                 select(Region, Group, dataset, ancestry, .data[[Pvalue_col]], N_eff) %>%
                 rename(Pvalue = .data[[Pvalue_col]])
-            dt_cauchy[[test]] <- data.table(dt_cauchy[[test]], key=c(c("Region", "dataset", "ancestry", "N_eff")))
+            dt_cauchy[[test]] <- data.table(dt_cauchy[[test]], key=c("Region", "dataset", "ancestry", "N_eff"))
             dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
+            print(dt_cauchy[[test]])
         }
     }
 
@@ -171,9 +173,11 @@ main <- function(args)
 
     if (!cauchy_only)
     {
+        cat("writing the results...\n")
         dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"), fill=TRUE)
         fwrite(dt_meta, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
     } else {
+        cat("writing the results...\n")
         fwrite(dt_meta_cauchy, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
     }
 }
