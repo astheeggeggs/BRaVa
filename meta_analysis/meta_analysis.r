@@ -152,8 +152,8 @@ main <- function(args)
                 select(Region, Group, dataset, ancestry, .data[[Pvalue_col]], N_eff) %>%
                 rename(Pvalue = .data[[Pvalue_col]])
             dt_cauchy[[test]] <- data.table(dt_cauchy[[test]], key=c("Region", "dataset", "ancestry", "N_eff"))
-            dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
-            print(dt_cauchy[[test]])
+            dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff) %>% mutate(Group = "Cauchy")
+            print(data.table(dt_cauchy[[test]]))
         }
     }
 
