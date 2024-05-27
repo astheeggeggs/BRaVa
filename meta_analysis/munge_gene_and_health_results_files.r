@@ -23,7 +23,7 @@ rename_files <- function(results_type="gene")
 	new_phenotype <- gsub("_$", "", new_phenotype)
 	start <- gsub(paste0("(.*", round_to_match, "\\.).*"), "\\1", from)
 	end <- gsub(paste0(".*(\\.", freeze_to_match, ".*)"), "\\1", from)
-
+	cat(paste0("from: ", from, "\nto: ", paste0(start, new_phenotype, end)))
 	file.rename(from, paste0(start, new_phenotype, end))
 }
 

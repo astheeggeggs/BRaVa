@@ -8,7 +8,7 @@ METAL_files <- grep("^.*/METAL_.*.txt$", dir(METAL_file_location, full.names=TRU
 METAL_location <- "~/Repositories/METAL/build/bin/metal"
 # Use intall_metal.sh script is METAL is not installed
 
-for (file in METAL_files[1]) {
+for (file in METAL_files) {
 	cat(paste0("carrying out meta-analysis using METAL_file: ", file, "\n"))
 	system(paste(METAL_location, file))
 }

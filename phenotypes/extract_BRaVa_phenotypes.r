@@ -162,6 +162,8 @@ dt <- dt %>%
 		age2_sex=age^2*sex
 	)
 
+dt <- dt %>% mutate(HeightResidSex = resid(lm(Height~sex, na.action=na.exclude)))
+
 fwrite(dt, file=combined_output, sep='\t')
 # /well/lindgren/UKBIOBANK/dpalmer/superpopulation_assignments/BRaVa_phenotypes_with_superpopulation_labels_updated_combined.tsv
 

@@ -97,6 +97,8 @@ main <- function(args)
                 two_tail = ifelse(test == "Burden", TRUE, FALSE),
                 input_beta = ifelse(test == "Burden", "BETA_Burden", NULL)) %>% 
             mutate(type="Stouffer")
+            dt_meta[[test]][["Stouffer"]] <- data.table(
+                dt_meta[[test]][["Stouffer"]], key = c("Region", "Group", "max_MAF"))
 
             if (test == "Burden") {
                 # And also run the inverse-variance weighted meta-analysis
@@ -104,8 +106,26 @@ main <- function(args)
                     dt %>% group_by(Region, Group, max_MAF), "BETA_Burden", "SE_Burden",
                     "BETA_Burden", "SE_Burden", "Pvalue") %>%
                 mutate(type="Inverse variance weighted")
-            }
+                dt_meta[[test]][["inverse_variance_weighted"]] <- data.table(
+                    dt_meta[[test]][["inverse_variance_weighted"]], key = c("Region", "Group", "max_MAF"))
 
+                # And also evaluate the heterogeneity P-values for both inverse variance weighted
+                # and Stouffers
+                dt_meta[[test]][["Stouffer"]] <- merge(dt_meta[[test]][["Stouffer"]],
+                    data.table(run_heterogeneity_test(
+                        weights(dt, FALSE, se_name="SE_Burden", n_eff_name="N_eff") %>% 
+                            group_by(Region, Group, max_MAF),
+                        input_beta="BETA_Burden", output_meta_beta="BETA_Burden"),
+                    key=c("Region", "Group", "max_MAF"))
+                )
+                dt_meta[[test]][["inverse_variance_weighted"]] <- merge(dt_meta[[test]][["inverse_variance_weighted"]],
+                    data.table(run_heterogeneity_test(
+                        weights(dt, TRUE, se_name="SE_Burden", n_eff_name="N_eff") %>% 
+                            group_by(Region, Group, max_MAF),
+                        input_beta="BETA_Burden", output_meta_beta="BETA_meta"),
+                    key=c("Region", "Group", "max_MAF"))
+                )
+            }
             dt_meta[[test]] <- rbindlist(dt_meta[[test]], use.names=TRUE, fill=TRUE) %>% mutate(class=test)
         }
 
@@ -153,11 +173,6 @@ main <- function(args)
     {
         dt_meta <- rbind(dt_meta, dt_meta_cauchy %>% mutate(Group="Cauchy", max_MAF="Cauchy"), fill=TRUE)
         fwrite(dt_meta, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
-     
-        # Finally, carry out heterogeneity test
-        dt_het <- run_heterogeneity(
-            dt %>% group_by(Region, Group, max_MAF),
-            "N_eff", "BETA_Burden", "BETA_Burden_meta")
     } else {
         fwrite(dt_meta_cauchy, file=ifelse(grepl(".tsv.gz$", args$out), args$out, paste0(args$out, ".tsv.gz")), sep='\t')
     }

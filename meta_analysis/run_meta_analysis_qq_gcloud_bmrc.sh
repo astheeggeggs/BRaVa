@@ -6,13 +6,13 @@
 META_FILE_GENE=$1
 OUT=$2
 
-# echo "Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --include_gene_names --out $OUT"
-# Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --out $OUT --include_gene_names
+echo "Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --include_gene_names --out $OUT"
+Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --out $OUT --include_gene_names
 
-# new_OUT=$(echo "$OUT" | sed "s/\.pdf/_burden.pdf/")
+new_OUT=$(echo "$OUT" | sed "s/\.pdf/_burden.pdf/")
 
-# echo "Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --include_gene_names --burden_only_plot --out $new_OUT"
-# Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --out $new_OUT --include_gene_names --burden_only_plot
+echo "Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --include_gene_names --burden_only_plot --out $new_OUT"
+Rscript meta_analysis_qq.r --meta_analysis_results_file $META_FILE_GENE --out $new_OUT --include_gene_names --burden_only_plot
 
 new_META_FILE_GENE=$(echo $META_FILE_GENE | sed "s/_cutoff.tsv.gz/_cutoff_extra_cauchy.tsv.gz/g")
 new_OUT=$(echo "$OUT" | sed "s/\.pdf/_cauchy.pdf/")

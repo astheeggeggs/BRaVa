@@ -96,11 +96,31 @@ default_variant_result_columns <- list(
 )
 
 renaming_plot_group_list <- list(
-    damaging_missense_or_protein_altering = "Damaging missense or PA",
-    other_missense_or_protein_altering = "Other missense or PA",
+    damaging_missense_or_protein_altering = "damaging missense or protein altering",
+    other_missense_or_protein_altering = "other missense or protein altering",
     synonymous = "Synonymous",
-    pLoF = "pLoF"
+    pLoF = "pLoF",
+    `pLoF;damaging_missense_or_protein_altering` = "pLoF;damaging missense or protein altering",
+	`pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous` = "pLoF;damaging missense or protein altering;other missense or protein altering;synonymous"
 )
+
+renaming_plot_biobank_list <- list(
+    `all-of-us` = "All of Us",
+	`alspac` = "ALSPAC",
+	`biome` = "BioMe",
+	`bbj` = "Biobank Japan",
+	`ckb` = "CKB",
+	`ccpm` = "CCPM",
+	`decode` = "DECODE",
+	`egcut` = "EGCUT",
+	`dan-rav` = "Dan-RaV",
+	`genes-and-health` = "Genes and Health",
+	`gel` = "Genomics England",
+	`mgbb` = "MGBB",
+	`pmbb` = "PMBB",
+	`qatar-genomes` = "Qatar Genome",
+	`uk-biobank` = "UK Biobank",
+	`viking-genes` = "Viking Genes")
 
 file_check_information <- list(
 	dataset = list(
@@ -756,6 +776,29 @@ run_heterogeneity <- function(
 		) %>% group_by(across(as.character(groups(grouped_dt)))) %>%
 		summarise(sum_deviation = sum(deviation), n_studies=n()) %>% 
 		filter(n_studies > 1) %>% mutate(p_het = pchisq(sum_deviation, n_studies-1, lower.tail=FALSE))
+	)
+}
+
+weights <- function(dt, is_inv_var=TRUE,
+	n_eff_name=NULL, se_name=NULL) {
+	if (is_inv_var) {
+		return(dt %>% mutate(weights = 1/(.data[[se_name]]^2)))
+	} else {
+		return(dt %>% mutate(weights = sqrt(.data[[n_eff_name]])))
+	}
+}
+
+run_heterogeneity_test <- function(
+	grouped_dt, input_beta, output_meta_beta) {
+	grouped_dt %>% 
+	mutate(weighted_effects = weights * .data[[input_beta]]) %>% 
+	summarise(
+		df = n()-1,
+		sum_weights = sum(weights),
+		"{output_meta_beta}" := sum(weighted_effects) / sum_weights,
+		chisq_het = sum(
+			weights * (.data[[input_beta]] - .data[[output_meta_beta]])^2),
+		Pvalue_het = pchisq(chisq_het, df, lower.tail=FALSE)
 	)
 }
 

@@ -144,9 +144,12 @@ main <- function(args)
 
 				if (any(!(default_gene_result_columns[[class]] %in% names(dt)))) {
 					cat("expected columns are missing!\n")
-					print(setdiff(default_gene_result_columns, names(dt)))
-					for (colname in setdiff(default_gene_result_columns[[class]], names(dt))) {
-						dt[[colname]] <- NA
+					cat(paste0(setdiff(default_gene_result_columns[[class]], names(dt)), collapse='\n'))
+					cat('\n')
+					if (any(!(default_gene_result_columns[["minimal"]] %in% names(dt)))) {
+						stop("missing a crucial column for meta-analysis")
+					} else {
+						cat("it's ok though, they're not required for meta-analysis!\n")
 					}
 				} else {
 					cat("all required columns are present!\n")
@@ -207,6 +210,7 @@ main <- function(args)
 				rename <- FALSE
 				marker_fix <- FALSE
 				rename_rsid <- FALSE
+				rename_chr <- FALSE
 
 				for (n in names(renaming_variant_header_list)) {
 					if (!(n %in% names(dt))) {
@@ -226,13 +230,15 @@ main <- function(args)
 				# genes. We can consider those in separate tests if we need to, and the 
 				# remants of them within the constituent variant files can be removed at the 
 				# end if need be, so we don't need to worry about them being retained.
-				dt <- dt %>% filter(CHR != "UR")
+				dt <- dt %>% filter(CHR != "UR", !grepl("\\*", MarkerID))
 
 				# Check CHR naming
 				if (!all(grepl("^chr[0-9X]+", dt[['CHR']]))) {
 					cat("chromosome naming does not match the expected format...\n")
 					if (all(grepl("^[0-9XYMT]+$", dt[['CHR']]))) {
 						dt[['CHR']] <- paste0('chr', dt[['CHR']])
+						rename <- TRUE
+						rename_chr <- TRUE
 						cat("successfully renamed chromosome column\n")
 					} else {
 						stop("chromosomes could not be renamed")
@@ -265,8 +271,24 @@ main <- function(args)
 					}
 				}
 
+				class <- ifelse(file_info$binary, "binary", "continuous")
+
+				if (any(!(default_variant_result_columns[[class]] %in% names(dt)))) {
+					cat("expected columns are missing!\n")
+					cat(paste0(setdiff(default_variant_result_columns[[class]], names(dt)), collapse='\n'))
+					cat('\n')
+					if (any(!(default_variant_result_columns[["minimal"]] %in% names(dt)))) {
+						stop("missing a crucial column for meta-analysis")
+					} else {
+						cat("it's ok though, they're not required for meta-analysis!\n")
+					}
+				} else {
+					cat("all required columns are present!\n")
+				}
+
 				out_f <- gsub(folder, paste0(args$out_folder, "/"), new_f)
 				if (args$write) {
+					cat('writing the file...\n')
 					if (rename_rsid) {
 						cat("running complete rename, using CHR:POS:A1:A2 as the MarkerID\n")
 						new_names <- names(dt)
@@ -274,10 +296,16 @@ main <- function(args)
 						cat(paste0("total number of variants is: ", nrow(dt), "\n"))
 						names(dt) <- new_names
 						dt <- dt %>% filter(CHR != "UR", !grepl("\\*", MarkerID))
+						if (rename_chr) {
+							dt[['CHR']] <- paste0('chr', dt[['CHR']])
+						}
 						cat(paste0("following removal of ultra-rares and strangely code variants,",
 							" total number of variants is: ", nrow(dt), "\n"))
 						dt <- data.table(dt)
 						dt[, MarkerID := paste(CHR, POS, Allele1, Allele2, sep=":")]
+						# Remove all other columns
+						dt <- dt %>% select(intersect(names(dt), names(renaming_variant_header_list)))
+						dt <- data.table(dt)
 						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
 						cat("file written to:\n")
 						cat(paste0(out_f, "\n"))
@@ -285,13 +313,19 @@ main <- function(args)
 						new_names <- names(dt)
 						dt <- fread(new_f)
 						names(dt) <- new_names
-						dt <- dt %>% filter(CHR != "UR")
+						dt <- dt %>% filter(CHR != "UR", !grepl("\\*", MarkerID))
+						if (rename_chr) {
+							dt[['CHR']] <- paste0('chr', dt[['CHR']])
+						}
 						dt <- data.table(dt)
 						if (marker_fix) {
 							dt[, MarkerID := gsub(
-								"^(chr[0-9X]*)[:,/\\_]([0-9]+)[:,/\\_]([ACGT]+)[:,/\\_]([ACGT]+)$",
-								"\\1:\\2:\\3:\\4", MarkerID)]
+								"^(chr)?([0-9X]*)[:,/\\_]([0-9]+)[:,/\\_]([ACGT]+)[:,/\\_]([ACGT]+)$",
+								"chr\\2:\\3:\\4:\\5", MarkerID)]
 						}
+						# Remove all other columns
+						dt <- dt %>% select(intersect(names(dt), names(renaming_variant_header_list)))
+						dt <- data.table(dt)
 						fwrite(dt, file=out_f, sep="\t", quote=FALSE)
 						cat("file written to:\n")
 						cat(paste0(out_f, "\n"))
