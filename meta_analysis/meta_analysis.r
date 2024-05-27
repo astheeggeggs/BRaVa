@@ -140,6 +140,7 @@ main <- function(args)
             dt_cauchy[[test]] <- run_cauchy(dt %>% group_by(Region, dataset, ancestry),
                 "N_eff", "Stat", Pvalue_col, "Pvalue") %>% mutate(type="Cauchy")
             dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
+            print(dt_cauchy[[test]])
         }
         cat("\n")
     } else {
