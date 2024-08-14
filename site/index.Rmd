@@ -26,7 +26,7 @@ In this website and repository, we detail the collection of quality control step
 
 <div style="text-align: center;">
 <a href="https://brava-genetics.github.io/BRaVa_curation/qc.html" class="btn btn-primary btn-lg">Details</a>
-<a href="https://brava-genetics.github.io/BRaVa_curation/qq_summary.html" class="btn btn-primary btn-lg">Summary</a>
+<a href="https://brava-genetics.github.io/BRaVa_curation/qc_summary.html" class="btn btn-primary btn-lg">Summary</a>
 </div>
 
 </div>
