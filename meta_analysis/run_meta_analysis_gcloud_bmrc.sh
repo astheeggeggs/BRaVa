@@ -3,6 +3,8 @@
 #SBATCH --output=/well/lindgren/dpalmer/logs/%x_%j.log
 #SBATCH --error=/well/lindgren/dpalmer/logs/%x_%j.err
 
+module load R
+
 FILES_GENE=$1
 OUT=$2
 
