@@ -6,7 +6,7 @@ library(dplyr)
 data_dir <- "~/Repositories/BRaVa_curation/data/meta_analysis/gcloud"
 n_cases <- 100
 out_meta_results_dir <- paste0(
-	"~/Repositories/BRaVa_curation/data/meta_analysis/meta_results/n_cases_", n_cases)
+	"~/Repositories/BRaVa_curation/data/meta_analysis/meta_results/n_cases_", n_cases, "_nglmm")
 system(paste("mkdir -p", out_meta_results_dir))
 source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
 source("~/Repositories/BRaVa_curation/phenotypes/BRaVa_phenotypes_utils.r")
@@ -48,4 +48,5 @@ for (phe in phenotypeIDs)
 		)
 	)
 	cat(paste0("meta-analysis of ", phe, " completed\n\n"))
+	break
 }

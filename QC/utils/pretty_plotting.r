@@ -414,12 +414,12 @@ make_manhattan_plot = function(contigs, positions, pvals, log_OR=NULL, label=NUL
     mutate(middle = floor(start + (end-start)/2),
            length = (end-start)) %>%
     mutate(shifted_position=middle + (contig - 1) * buffer)
-    if (!is.null(label)) {
+    if (is.null(label)) {
         label = rep(NULL, length(contigs))
     }
     dt_plot <- data.table(contig=gsub("chr", "", contigs), position=as.integer(positions), pval=as.numeric(pvals), labels=label) %>%
     mutate(x = dt_contigs[gsub('X', '23', contig), 'start'] + position + (as.integer(gsub('X', '23', contig))-1)*buffer)
-    
+
     # Include two tone chromosome plotting
     if (two_tone) {
         dt_plot <- dt_plot %>% mutate(colour=ifelse((as.integer(gsub('X', '23', contig)) %% 2) == 0, colour_1, colour_2))
@@ -441,9 +441,19 @@ make_manhattan_plot = function(contigs, positions, pvals, log_OR=NULL, label=NUL
 
     # Were log p-values passed?
     if(!log_p_vals) {
-        dt_plot <- dt_plot %>% mutate(y = -log10(pval)) %>% select(x, y, colour, label)
+        dt_plot <- as.data.frame(dt_plot)
+        if (is.null(label)) {
+            dt_plot <- dt_plot %>% mutate(y = -log10(pval)) %>% dplyr::select(x, y, colour)
+        } else {
+            dt_plot <- dt_plot %>% mutate(y = -log10(pval)) %>% dplyr::select(x, y, colour, labels)
+        }
     } else {
-        dt_plot <- dt_plot %>% mutate(y= pval) %>% select(x, y, colour, label)
+        dt_plot <- as.data.frame(dt_plot)
+        if (is.null(label)) {
+            dt_plot <- dt_plot %>% mutate(y= pval) %>% dplyr::select(x, y, colour)
+        } else {
+            dt_plot <- dt_plot %>% mutate(y= pval) %>% dplyr::select(x, y, colour, labels)
+        }
     }
 
     if (size_by_p) {
@@ -455,9 +465,9 @@ make_manhattan_plot = function(contigs, positions, pvals, log_OR=NULL, label=NUL
     }
 
     if (size_by_p) {
-        p <- ggplot(dt_plot, aes(x=x,y=y,label=label, col=colour, size=size)) + geom_point_rast()
+        p <- ggplot(dt_plot, aes(x=x, y=y, col=colour, size=size)) + geom_point_rast()
     } else {
-        p <- ggplot(dt_plot, aes(x=x,y=y,label=label, col=colour)) + geom_point_rast(size=0.5)
+        p <- ggplot(dt_plot, aes(x=x, y=y, col=colour)) + geom_point_rast(size=0.5)
     }
 
     p <- p + geom_hline(yintercept=-log10(significance_T), color='#E15759', linetype='dashed') +
@@ -479,7 +489,7 @@ make_manhattan_plot = function(contigs, positions, pvals, log_OR=NULL, label=NUL
     if (!is.null(label))
         p <- p + geom_label_repel(
             data=subset(dt_plot, y > threshold), size = 5,
-            aes(label=label), color='grey30', box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50')
+            aes(label=labels), color='grey30', box.padding = 0.35, point.padding = 0.5, segment.color = 'grey50')
 
     if (!is.null(title_size)) 
         p <- p + theme(plot.title = element_text(size=title_size))
@@ -489,7 +499,7 @@ make_manhattan_plot = function(contigs, positions, pvals, log_OR=NULL, label=NUL
 
     if (save_figure) {
         ggsave(paste0(file, '.jpg'), p, width=width*scaling, height=height*scaling, units='mm')
-        ggsave(paste0(file, '.pdf'), p, width=width*scaling, height=height*scaling, units='mm')
+        # ggsave(paste0(file, '.pdf'), p, width=width*scaling, height=height*scaling, units='mm')
     }
 
     if (print_p) { print(p) }

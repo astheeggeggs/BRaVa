@@ -42,14 +42,14 @@ ht_gnomAD_popmax = hl.import_table(GNOMAD_POPMAX, no_header=True)
 ht_gnomAD_popmax = ht_gnomAD_popmax.annotate(variant = hl.parse_variant(ht_gnomAD_popmax.f0))
 ht_gnomAD_popmax = ht_gnomAD_popmax.key_by('variant').select()
 
-ht_results = ht_results.key_by('variant')
 ht_results = ht_results.annotate(in_gnomAD_popmax = hl.is_defined(ht_gnomAD_popmax[ht_results.variant]))
 ht_results = ht_results.filter(~ht_results.in_gnomAD_popmax)
-ht_results = ht_results.key_by()
+ht_results = ht_results.key_by('P-value')
 ht_results = ht_results.select(
 	ht_results.MarkerName,
 	ht_results.Allele1,
 	ht_results.Allele2, ht_results.Effect,
-	ht_results.StdErr, ht_results['P-value'], ht_results.Direction
-	)
+	ht_results.StdErr, ht_results.Direction,
+	ht_results.HetISq, ht_results.HetChiSq, 
+	ht_results.HetDf, ht_results.HetPVal)
 ht_results.export(RESULTS_FILE_RARE_EXOME)

@@ -96,12 +96,12 @@ default_variant_result_columns <- list(
 )
 
 renaming_plot_group_list <- list(
-    damaging_missense_or_protein_altering = "damaging missense or protein altering",
-    other_missense_or_protein_altering = "other missense or protein altering",
+    damaging_missense_or_protein_altering = "Damaging missense or protein altering",
+    other_missense_or_protein_altering = "Other missense or protein altering",
     synonymous = "Synonymous",
     pLoF = "pLoF",
-    `pLoF;damaging_missense_or_protein_altering` = "pLoF;damaging missense or protein altering",
-	`pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous` = "pLoF;damaging missense or protein altering;other missense or protein altering;synonymous"
+    `pLoF;damaging_missense_or_protein_altering` = "pLoF; damaging missense or protein altering",
+	`pLoF;damaging_missense_or_protein_altering;other_missense_or_protein_altering;synonymous` = "pLoF; damaging missense or protein altering; other missense or protein altering; synonymous"
 )
 
 renaming_plot_biobank_list <- list(
@@ -114,7 +114,7 @@ renaming_plot_biobank_list <- list(
 	`decode` = "DECODE",
 	`egcut` = "EGCUT",
 	`dan-rav` = "Dan-RaV",
-	`genes-and-health` = "Genes and Health",
+	`genes-and-health` = "Genes & Health",
 	`gel` = "Genomics England",
 	`mgbb` = "MGBB",
 	`pmbb` = "PMBB",
@@ -285,18 +285,219 @@ file_check_information <- list(
 		`F` = c("F", "female", "Female", "FEMALE")
 	),
 	ancestry = list(
-		`AFR` = c("AFR"),
-		`AMR` = c("AMR"),
-		`EAS` = c("EAS"),
-		`EUR` = c("EUR"),
-		`MID` = c("MID"),
-		`SAS` = c("SAS")
+		`AFR` = c("AFR", "afr"),
+		`AMR` = c("AMR", "amr"),
+		`EAS` = c("EAS", "eas"),
+		`EUR` = c("EUR", "eur"),
+		`MID` = c("MID", "mid"),
+		`SAS` = c("SAS", "sas")
 	),
 	type = list(
 		`gene` = c("Gene", "gene"),
 		`variant` = c("Variant", "var", "variant")
 	)
 )
+
+color_amr <- '#ED1E24'
+color_eur <- '#6AA5CD'
+color_afr <- '#941494'
+color_sas <- '#FF9912'
+color_eas <- '#108C44'
+color_oth <- '#ABB9B9'
+color_mde <- '#33CC33'
+color_asj <- 'coral'
+color_nfe <- color_eur
+color_fin <- '#002F6C'
+
+pop_colors <- c('AFR' = color_afr,
+               'AMR' = color_amr,
+               'EAS' = color_eas,
+               'FIN' = color_fin,
+               'EUR' = color_nfe,
+               'NEF' = color_nfe,
+               'OTH' = color_oth,
+               'SAS' = color_sas,
+               'MDE' = color_mde,
+               'ASJ' = color_asj,
+               'uniform' = 'pink',
+               'consanguineous' = 'pink',
+               'SAS_non_consang' = 'orange')
+
+pop_names <- c('OTH' = 'Other',
+              'AFR' = 'African/African-American',
+              'AMR' = 'Latino',
+              'EAS' = 'East Asian',
+              'FIN' = 'Finnish',
+              'EUR' = 'European',
+              'NFE' = 'European',
+              'SAS' = 'South Asian',
+              'MDE' = 'Middle Eastern',
+              'ASJ' = 'Ashkenazi Jewish',
+              'uniform' = 'Uniform',
+              'SAS_non_consang' = 'South Asian (F < 0.05)',
+              'consanguineous' = 'South Asian (F > 0.05)')
+
+color_syn = '#AAAAAA'
+color_mis = '#FF6103'
+color_os = '#74099E'
+color_lof = '#9D1309'
+color_lc_lof = '#EE799F'
+var_type_aliases = c('syn' = 'Synonymous', 'mis' = 'Missense', 'lof' = 'pLoF', 'os' = 'Other splice')
+colors = c('synonymous_variant' = color_syn,
+           'missense_variant' = color_mis,
+           'stop_gained' = color_lof,
+           'Synonymous' = color_syn,
+           'Missense' = color_mis,
+           'synonymous' = color_syn,
+           'missense' = color_mis,
+           'nonsense' = color_lof,
+           'Other splice' = color_os,
+           'LoF' = color_lof,
+           'pLoF' = color_lof,
+           'damaging_missense_or_protein_altering' = color_mis,
+           'Damaging missense or protein altering' = color_mis)
+
+case_ctrl <- c(
+	"AAA",
+	"AcApp",
+	"AcuLymLeuk",
+	"Adenomy",
+	"AMD",
+	"ALamy",
+	"AUD",
+	"AloAre",
+	"AnoNer",
+	"AoSten",
+	"Asth",
+	"AtopDis",
+	"AFib",
+	"ADHD",
+	"ASD",
+	"BCLL",
+	"BenCervUterNeo",
+	"BenIntNeo",
+	"BenNodGoit",
+	"BladCanc",
+	"BrainCNSCanc",
+	"BreastCanc",
+	"BrugSynd",
+	"BuliNer",
+	"BullPemph",
+	"CarShock",
+	"HCM",
+	"CRVO",
+	"CervCanc",
+	"CML",
+	"COPD",
+	"CRF",
+	"CoffSirSynd",
+	"ColonRectCanc",
+	"CAD",
+	"CCANS",
+	"EatDis",
+	"Endocar",
+	"Endometr",
+	"EsophCanc",
+	"EssThrom",
+	"EFRMB",
+	"FSP",
+	"FemInf",
+	"FemInfAC",
+	"FolLymph",
+	"Gout",
+	"GravesDis",
+	"HemoChromo",
+	"HF",
+	"HepCarcin",
+	"HTN",
+	"HHD",
+	"HypoThyr",
+	"HypoThyrSec",
+	"IPF",
+	"ITP",
+	"IBD",
+	"IFHern",
+	"ILDSarc",
+	"IodDef",
+	"KabSynd",
+	"KidCanc",
+	"KleefSynd",
+	"LaryxCanc",
+	"Leuk",
+	"LiverCanc",
+	"LiverFibCirr",
+	"LongQTSynd",
+	"LymphThyrit",
+	"MalInf",
+	"MatHem",
+	"MatHypDis",
+	"MODYDiab",
+	"MultiMyel",
+	"MS",
+	"MECS",
+	"Myocard",
+	"Narco1",
+	"NonFuncPitAd",
+	"NHL",
+	"NonPapTCCBlad",
+	"NonRheuValv",
+	"OUD",
+	"OCD",
+	"OvCanc",
+	"Pancreat",
+	"ParkDis",
+	"PeptUlcer",
+	"PAD",
+	"PlacInsuf",
+	"PCOS",
+	"PolycythVera",
+	"Preeclamps",
+	"PregLoss",
+	"POAG",
+	"PrimSjoSynd",
+	"Prolactinom",
+	"Psori",
+	"RheumHeaDis",
+	"RheumArth",
+	"RomWardSynd",
+	"Sarcoid",
+	"SebDerm",
+	"SpinaBifAp",
+	"StomCanc",
+	"Stroke",
+	"SLE",
+	"TAAD",
+	"ThyroCanc",
+	"T2Diab",
+	"Urolith",
+	"UterCanc",
+	"VaricVeins",
+	"VTE"
+)
+
+cts <- c(
+	"ALT",
+	"AlcCons",
+	"AST",
+	"BMI",
+	"CRP",
+	"CACS",
+	"CK",
+	"HDLC",
+	"Height",
+	"LDLC",
+	"TChol",
+	"TG",
+	"WHRBMI",
+	"LVH",
+	"Append",
+	"HipRep",
+	"CogAbil",
+	"EduAtt",
+	"PsySymp",
+	"SchGrades",
+	"SCDCAT"
+	)
 
 determine_binary_filename <- function(dataset, last_name, analysis_name, phenotype, sex,
     ancestry, n_cases, n_controls, type, date,
@@ -456,6 +657,26 @@ add_N_using_filename <- function(file_info, dt)
         dt$N_control <- N_control
     }
     return(dt)
+}
+
+add_N_using_Neff_weights_file <- function(file_info,
+	dt,
+	Neff_weights_file="~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/Neff_weights.tsv.gz") {
+	dt_weights <- fread(Neff_weights_file)
+	# Replace with Neff if it is present, otherwise throw a warning.
+	Neff_replace <- (dt_weights %>% filter(
+		pheno == file_info$phenotype,
+		ancestry == file_info$ancestry,
+		dataset == file_info$dataset
+		))$nglmm
+	if (length(Neff_replace) == 1) {
+		dt$N_eff <- Neff_replace
+	} else if (length(Neff_replace) == 0) {
+		warning("Nglmm is not present, reverting to assuming all samples are unrelated")
+	} else {
+		warning("Multiple matches to this (pheno, ancestry, dataset) tuple")
+	}
+	return(dt)
 }
 
 add_N <- function(file_info, dt_gene)

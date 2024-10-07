@@ -22,7 +22,7 @@ main <- function(args)
 	writeLines(c(
 		"",
 		paste0("OUTFILE ", args$phenotypeID, "_variant_meta_analysis .tbl"),
-		"ANALYZE",
+		"ANALYZE HETEROGENEITY",
 		"",
 		"QUIT"), fileConn
 	)

@@ -59,6 +59,7 @@ main <- function(args)
 
         # Compare N to actual N and throw an error if it doesn't match
         dt_tmp <- add_N_using_filename(file_info, dt_list[[file]])
+        dt_tmp <- add_N_using_Neff_weights_file(file_info, dt_tmp)
         dt_list[[file]] <- dt_tmp %>% filter(Group != "Cauchy")
     }
 
@@ -135,12 +136,11 @@ main <- function(args)
         # This is evaluating Cauchy ourselves, for everything
         dt_cauchy <- list()
         for (test in tests) {
-            cat(paste0(test, "..."))
+            cat(paste0(test, " Cauchy combination..."))
             Pvalue_col <- ifelse(test == "SKAT-O", "Pvalue", paste0("Pvalue_", test))        
             dt_cauchy[[test]] <- run_cauchy(dt %>% group_by(Region, dataset, ancestry),
                 "N_eff", "Stat", Pvalue_col, "Pvalue") %>% mutate(type="Cauchy")
             dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff) %>% mutate(Group = "Cauchy")
-            print(dt_cauchy[[test]])
         }
         cat("\n")
     } else {
@@ -153,7 +153,6 @@ main <- function(args)
                 rename(Pvalue = .data[[Pvalue_col]])
             dt_cauchy[[test]] <- data.table(dt_cauchy[[test]], key=c("Region", "dataset", "ancestry", "N_eff"))
             dt_cauchy[[test]] <- merge(dt_cauchy[[test]], dt_n_eff)
-            print(data.table(dt_cauchy[[test]]))
         }
     }
 
