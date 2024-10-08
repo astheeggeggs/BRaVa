@@ -11,6 +11,6 @@ OUT=$2
 Rscript meta_analysis.r --file_paths $FILES_GENE --no_sex_check --out $OUT
 
 new_FILES_GENE=$(echo "$FILES_GENE" | sed "s/txt.gz/extra_cauchy.gz/g")
-new_OUT=$(echo $OUT | sed "s/_cutoff.tsv.gz/_cutoff_extra_cauchy.tsv.gz/g")
+new_OUT=$(echo $OUT | sed "s/cutoff/cutoff_extra_cauchy/g")
 
 Rscript meta_analysis.r --file_paths $new_FILES_GENE --no_sex_check --out $new_OUT
