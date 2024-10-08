@@ -66,6 +66,7 @@ main <- function(args)
 			"sbatch run_meta_analysis_gcloud_bmrc.sh",
 			files_gene, out))
 		cat(paste0("submitted meta-analysis of ", phe, " completed\n\n"))
+		break
 	}
 
 	# We also want to run superpopulation specific meta-analysis, non-EUR,
@@ -81,7 +82,7 @@ main <- function(args)
 			phenotypeID = sapply(files_info, `[[`, 4),
 			pop = sapply(files_info, `[[`, 7)
 		)
-		
+
 		for (p in c("AFR", "AMR", "EAS", "EUR", "SAS")) {
 			files_gene_tmp <- paste((to_subset %>% filter(pop == !!p))$filename, collapse=",")
 			# Ensure the folder is present
@@ -94,6 +95,7 @@ main <- function(args)
 				"sbatch run_meta_analysis_gcloud_bmrc.sh",
 				files_gene_tmp, out))
 			cat(paste0("submitted meta-analysis of ", phe, ":", p, " completed\n\n"))
+			break
 		}
 	}
 
@@ -119,6 +121,7 @@ main <- function(args)
 			"sbatch run_meta_analysis_gcloud_bmrc.sh",
 			files_gene_tmp, out))
 		cat(paste0("submitted meta-analysis of ", phe, ":non_EUR completed\n\n"))
+		break
 	}
 }
 
