@@ -662,6 +662,10 @@ add_N_using_filename <- function(file_info, dt)
 add_N_using_Neff_weights_file <- function(file_info,
 	dt,
 	Neff_weights_file="~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/Neff_weights.tsv.gz") {
+	if (!file.exists(Neff_weights_file)) {
+		warning("Neff weights files not found")
+		return(dt)
+	}
 	dt_weights <- fread(Neff_weights_file)
 	# Replace with Neff if it is present, otherwise throw a warning.
 	Neff_replace <- (dt_weights %>% filter(
