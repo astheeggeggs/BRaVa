@@ -59,7 +59,8 @@ main <- function(args)
 
         # Compare N to actual N and throw an error if it doesn't match
         dt_tmp <- add_N_using_filename(file_info, dt_list[[file]])
-        dt_tmp <- add_N_using_Neff_weights_file(file_info, dt_tmp)
+        dt_tmp <- add_N_using_Neff_weights_file(file_info, dt_tmp,
+            Neff_weights_file=args$Neff_weights_file)
         dt_list[[file]] <- dt_tmp %>% filter(Group != "Cauchy")
     }
 
@@ -192,6 +193,9 @@ parser$add_argument("--out", default="meta_analysis", required=FALSE,
     help="Output filepath")
 parser$add_argument("--no_sex_check", default=FALSE, action='store_true',
     help="Perform sex check of samples used for the trait when running meta-analysis?")
+parser$add_argument("--Neff_weights_file",
+    default="/well/lindgren/dpalmer/BRaVa_meta-analysis_inputs/Neff/Neff_weights.tsv.gz",
+    help="File to pass effective sample sizes")
 args <- parser$parse_args()
 
 main(args)

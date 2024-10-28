@@ -139,7 +139,7 @@ main <- function(args)
 
 # Add arguments
 parser <- ArgumentParser()
-parser$add_argument("--data_dir", default="/well/lindgren/dpalmer/BRaVa_meta-analysis_inputs",
+parser$add_argument("--data_dir", default="/well/lindgren/dpalmer/BRaVa_meta-analysis_inputs/biobanks",
 	required=FALSE, help="Location of the folder containing the input into the meta-analysis")
 parser$add_argument("--n_cases", default=100, required=FALSE,
 	help="Minimum number of cases")

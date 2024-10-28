@@ -800,7 +800,7 @@ add_N_using_filename <- function(file_info, dt)
 
 add_N_using_Neff_weights_file <- function(file_info,
 	dt,
-	Neff_weights_file="~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/Neff_weights.tsv.gz") {
+	Neff_weights_file="/well/lindgren/dpalmer/BRaVa_meta-analysis_inputs/Neff/Neff_weights.tsv.gz") {
 	if (!file.exists(Neff_weights_file)) {
 		warning("Neff weights files not found")
 		return(dt)
