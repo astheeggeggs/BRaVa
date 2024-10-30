@@ -32,7 +32,7 @@ if (length(grep("\\.extra_cauchy\\.", results_dt$filename)) > 0) {
 }
 # pilot_phenotypes <- extract_BRaVa_pilot_phenotypes()
 # phenotypeIDs <- intersect(pilot_phenotypes, unique(results_dt$phenotypeID))
-phenotypeIDs <- "AMD"
+phenotypeIDs <- "TG"
 
 for (phe in phenotypeIDs)
 {
@@ -50,5 +50,4 @@ for (phe in phenotypeIDs)
 		)
 	)
 	cat(paste0("meta-analysis of ", phe, " completed\n\n"))
-	break
 }

@@ -845,12 +845,17 @@ add_N <- function(file_info, dt_gene)
     return(list(dt_gene = dt_gene, binary=binary))
 }
 
-determine_null_correlation <- function(dt, pval_T=0.05)
+determine_null_correlation <- function(dt, pval_T=0.05, binary=TRUE)
 {
 	# Assume that correlation across ancestry labels is 0
 	cor_count_pval <- list()
 	# Restrict to what should be the null set of tests
-	dt <- dt %>% filter(Group == "synonymous", max_MAF == 1e-3, MAC_case > 30, MAC_case < 1000)
+	if (binary) {
+		dt <- dt %>% filter(Group == "synonymous", max_MAF == 1e-3, MAC_case > 30, MAC_case < 1000)
+	} else {
+		dt <- dt %>% filter(Group == "synonymous", max_MAF == 1e-3, MAC > 50)
+	}
+
 	i <- 1
 	for (anc in c("AFR", "AMR", "EAS", "EUR", "SAS")) {
 		dt_tmp <- dt %>% filter(ancestry == anc)
@@ -877,7 +882,7 @@ determine_null_correlation <- function(dt, pval_T=0.05)
 					count=nrow(dt_ij),
 					Neff1=dt_i$N_eff[1],
 					Neff2=dt_j$N_eff[2]
-				) %>% mutate(summation = sqrt(Neff1*Neff2)*cor*(pval<pval_T))
+				) %>% mutate(summation = sign(cor)*sqrt(abs(cor)*Neff1)*sqrt(abs(cor)*Neff2)*(pval<pval_T))
 				i <- i+1
 			}
 		}

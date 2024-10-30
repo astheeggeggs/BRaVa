@@ -65,7 +65,7 @@ main <- function(args)
     }
 
     dt <- rbindlist(dt_list, use.names=TRUE)
-    dt_cor <- determine_null_correlation(dt) # Note that this is just using the Burden p-values
+    dt_cor <- determine_null_correlation(dt, binary=file_info$binary) # Note that this is just using the Burden p-values
     print(dt_cor)
     print(key(dt_cor))
     # Merge with Neff information
