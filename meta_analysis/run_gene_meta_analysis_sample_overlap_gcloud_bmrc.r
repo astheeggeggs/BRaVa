@@ -64,21 +64,7 @@ main <- function(args)
 		cat(paste0("\nFiles in the analysis: ",
 			paste0(strsplit(files_gene, split=",")[[1]], collapse='\n'), "\n"))
 		system(paste(
-			"sbatch run_meta_analysis_gcloud_bmrc.sh",
-			files_gene, out))
-		cat(paste0("submitted meta-analysis of ", phe, " completed\n\n"))
-	}
-
-	# Now run, excluding MGBB and GEL
-	for (phe in phes) {
-		files_gene <- (results_dt %>% filter(phenotypeID == phe, !(biobank %in% c("mgbb", "gel"))))$filename
-		files_gene <- paste(files_gene, collapse=",")
-		out <- paste0(out_meta_results_dir, "/", phe, "_gene_meta_analysis_", n_cases, "_no_mgbb_gel_cutoff.tsv.gz")
-		cat(paste0("carrying out meta-analysis of ", phe, "\n"))
-		cat(paste0("\nFiles in the analysis: ",
-			paste0(strsplit(files_gene, split=",")[[1]], collapse='\n'), "\n"))
-		system(paste(
-			"sbatch run_meta_analysis_gcloud_bmrc.sh",
+			"sbatch run_meta_analysis_sample_overlap_gcloud_bmrc.sh",
 			files_gene, out))
 		cat(paste0("submitted meta-analysis of ", phe, " completed\n\n"))
 	}
@@ -106,7 +92,7 @@ main <- function(args)
 			cat(paste0("\nFiles in the analysis: ",
 				paste0(strsplit(files_gene_tmp, split=",")[[1]], collapse='\n'), "\n"))
 			system(paste(
-				"sbatch run_meta_analysis_gcloud_bmrc.sh",
+				"sbatch run_meta_analysis_sample_overlap_gcloud_bmrc.sh",
 				files_gene_tmp, out))
 			cat(paste0("submitted meta-analysis of ", phe, ":", p, " completed\n\n"))
 		}
@@ -131,7 +117,7 @@ main <- function(args)
 		cat(paste0("\nFiles in the analysis: ",
 			paste0(strsplit(files_gene_tmp, split=",")[[1]], collapse='\n'), "\n"))
 		system(paste(
-			"sbatch run_meta_analysis_gcloud_bmrc.sh",
+			"sbatch run_meta_analysis_sample_overlap_gcloud_bmrc.sh",
 			files_gene_tmp, out))
 		cat(paste0("submitted meta-analysis of ", phe, ":non_EUR completed\n\n"))
 	}
