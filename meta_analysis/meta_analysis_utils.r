@@ -845,7 +845,7 @@ add_N <- function(file_info, dt_gene)
     return(list(dt_gene = dt_gene, binary=binary))
 }
 
-determine_null_correlation <- function(dt, pval_T=0.01)
+determine_null_correlation <- function(dt, pval_T=0.05)
 {
 	# Assume that correlation across ancestry labels is 0
 	cor_count_pval <- list()

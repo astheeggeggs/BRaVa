@@ -10,7 +10,7 @@ main <- function(args)
 	out_dir <- args$out_dir
 	phe <- args$phenotypeID
 
-	out_meta_results_dir <- paste0(out_dir, "/gene/n_cases_", n_cases)
+	out_meta_results_dir <- paste0(out_dir, "/gene/n_cases_", n_cases, "_sample_overlap")
 	
 	# Ensure that the folder is already present
 	system(paste("mkdir -p", out_meta_results_dir))
