@@ -5,7 +5,7 @@ library(stringr)
 library(argparse)
 
 # Pass a comma separated list of filenames
-tests <- c("Burden")#, "SKAT", "SKAT-O")
+tests <- c("Burden", "SKAT", "SKAT-O")
 source("meta_analysis_utils.r")
 
 # Extract the files to read in
