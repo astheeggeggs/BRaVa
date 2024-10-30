@@ -9,8 +9,3 @@ FILES_GENE=$1
 OUT=$2
 
 Rscript meta_analysis_sample_overlap.r --file_paths $FILES_GENE --no_sex_check --out $OUT --Neff_weights_file /well/lindgren/dpalmer/BRaVa_meta-analysis_inputs/Neff/Neff_weights.tsv.gz
-
-new_FILES_GENE=$(echo "$FILES_GENE" | sed "s/txt.gz/extra_cauchy.gz/g")
-new_OUT=$(echo $OUT | sed "s/cutoff/cutoff_extra_cauchy/g")
-
-Rscript meta_analysis_sample_overlap.r --file_paths $new_FILES_GENE --no_sex_check --out $new_OUT --Neff_weights_file /well/lindgren/dpalmer/BRaVa_meta-analysis_inputs/Neff/Neff_weights.tsv.gz
