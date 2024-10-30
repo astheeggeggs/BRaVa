@@ -845,6 +845,49 @@ add_N <- function(file_info, dt_gene)
     return(list(dt_gene = dt_gene, binary=binary))
 }
 
+determine_null_correlation <- function(dt, pval_T=0.01)
+{
+	# Assume that correlation across ancestry labels is 0
+	cor_count_pval <- list()
+	# Restrict to what should be the null set of tests
+	dt <- dt %>% filter(Group == "synonymous", max_MAF == 1e-3, MAC_case > 30, MAC_case < 1000)
+	i <- 1
+	for (anc in c("AFR", "AMR", "EAS", "EUR", "SAS")) {
+		dt_tmp <- dt %>% filter(ancestry == anc)
+		datasets <- unique(dt_tmp$dataset)
+		for (d1 in datasets) {
+			dt_i <- dt_tmp %>% filter(dataset == d1)
+			setkeyv(dt_i, c("max_MAF", "Region"))
+			for (d2 in datasets) {
+				dt_j <- dt_tmp %>% filter(dataset == d2)
+				setkeyv(dt_j, c("max_MAF", "Region"))
+				dt_ij <- merge(dt_i, dt_j)
+				if (nrow(dt_ij) < 100) {
+					next
+				}
+				Z_i <- qnorm(dt_ij$`Pvalue.x`/2) * sign(dt_ij$`BETA_Burden.x`)
+				Z_j <- qnorm(dt_ij$`Pvalue.y`/2) * sign(dt_ij$`BETA_Burden.y`)
+				test <- cor.test(Z_i, Z_j, alternative = "greater")
+				cor_count_pval[[i]] <- data.table(
+					dataset=d1,
+					dataset2=d2,
+					ancestry=anc,
+					cor=test$estimate,
+					pval=test$`p.value`,
+					count=nrow(dt_ij),
+					Neff1=dt_i$N_eff[1],
+					Neff2=dt_j$N_eff[2]
+				) %>% mutate(summation = sqrt(Neff1*Neff2)*cor*(pval<pval_T))
+				i <- i+1
+			}
+		}
+	}
+	cor_count_pval <- rbindlist(cor_count_pval)
+	setkeyv(cor_count_pval, c("dataset", "dataset2", "ancestry"))
+	return(cor_count_pval)
+}
+
+
 cauchy_combination <- function(p_values, weights=NULL)
 {
 	is.zero <- sum(p_values == 0) >= 1
@@ -1238,6 +1281,47 @@ run_stouffer <- function(
 		summarise(
 			"{weighted_Z_name}" := sum(weighted_Z_numerator) / 
 				sqrt(sum(.data[[n_eff_name]])),
+			"{output_meta_pvalue}" := pnorm(.data[[weighted_Z_name]], lower.tail=FALSE)
+		)
+	}
+	return(result)
+}
+
+
+run_stouffer_overlap <- function(
+	grouped_dt, n_eff_name, weighted_Z_name, cross_terms,
+	input_pvalues, output_meta_pvalue,
+	two_tail = FALSE, input_beta = NULL
+) {
+	if (two_tail) {
+		grouped_dt <- grouped_dt %>% 
+			mutate("{input_pvalues}" := .data[[input_pvalues]]/2)
+	} else {
+		input_beta <- "beta_dummy"
+		grouped_dt <- grouped_dt %>% mutate("{input_beta}" := 1)
+	}
+	
+	result <- grouped_dt %>%
+		mutate(
+			weighted_Z_numerator = (
+				sqrt(.data[[n_eff_name]]) * 
+				(-qnorm(.data[[input_pvalues]])) * 
+				sign(.data[[input_beta]])
+			)
+		)
+
+	if (two_tail) {
+		result <- result %>%
+		summarise(
+			"{weighted_Z_name}" := sum(weighted_Z_numerator) / 
+				sqrt(sum(.data[[cross_terms]])),
+			"{output_meta_pvalue}" := 2 * pnorm(abs(.data[[weighted_Z_name]]), lower.tail=FALSE)
+		)
+	} else {
+		result <- result %>%
+		summarise(
+			"{weighted_Z_name}" := sum(weighted_Z_numerator) / 
+				sqrt(sum(.data[[cross_terms]])),
 			"{output_meta_pvalue}" := pnorm(.data[[weighted_Z_name]], lower.tail=FALSE)
 		)
 	}

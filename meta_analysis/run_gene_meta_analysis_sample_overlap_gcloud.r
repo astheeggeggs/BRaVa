@@ -41,12 +41,12 @@ for (phe in phenotypeIDs)
 	cat(paste0("carrying out meta-analysis of ", phe, "\n"))
 	cat(paste0("\nFiles in the analysis: ", paste0(strsplit(files_gene, split=",")[[1]], collapse='\n')))
 	system(paste(
-		"Rscript meta_analysis.r",
+		"Rscript meta_analysis_sample_overlap.r",
 		"--file_paths", files_gene,
 		"--no_sex_check ",
 		"--Neff_weights_file", "~/Repositories/BRaVa_curation/data/meta_analysis/gcloud/Neff_weights.tsv.gz",
 		"--out", paste0(
-			out_meta_results_dir, "/", phe, "_gene_meta_analysis_", n_cases, "_cutoff.tsv.gz")
+			out_meta_results_dir, "/", phe, "_gene_meta_analysis_", n_cases, "_cutoff_overlap.tsv.gz")
 		)
 	)
 	cat(paste0("meta-analysis of ", phe, " completed\n\n"))
