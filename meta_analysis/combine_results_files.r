@@ -6,16 +6,19 @@ library(ggplot2)
 library(latex2exp)
 library(argparse)
 
-source("~/Repositories/BRaVa_curation/QC/utils/pretty_plotting.r")
-source("~/Repositories/BRaVa_curation/meta_analysis/meta_analysis_utils.r")
 
-analysis_results_folder <- "~/Repositories/BRaVa_curation/data/meta_analysis/gcloud"
-analysis_results_path_regexp <- "*cleaned*"
-files <- dir(analysis_results_folder,
-    pattern=analysis_results_path_regexp,
-    full.names=TRUE)
 
-dt_list <- list()
+
+
+
+
+gcloud_bucket <- paste0("brava-meta-upload-", dataset)
+# Upload the results to the relevant bucket
+system(paste0("gsutil cp ", variant_folder, "/combined/* gs://", gcloud_bucket, "/"))
+system(paste0("gsutil cp ", gene_folder, "/combined/* gs://", gcloud_bucket, "/"))
+
+
+# The following loop is to combine together files for meta-analysis
 for (file in files) {
     file_info <- extract_file_info(gsub(".*/(.*)", "\\1", file))
     print(file_info)
@@ -38,4 +41,54 @@ for (file in files) {
     dt_tmp$ancestry <- ancestry
     dt_list[[file]] <- dt_tmp
 }
+
 dt <- rbindlist(dt_list)
+
+
+# "AFib"
+# "AMD"
+# "Asth"
+# "BenCervUterNeo"
+# "BenIntNeo"
+# "BMI"
+# "BreastCanc"
+# "CAD"
+# "CervCanc"
+# "ColonRectCanc"
+# "COPD"
+# "CRF"
+# "CRP"
+# "EFRMB"
+# "FemInf"
+# "Gout"
+# "HDLC"
+# "Height"
+# "HF"
+# "HTN"
+# "IBD"
+# "IFHern"
+# "ILDSarc"
+# "LDLC"
+# "MatHem"
+# "NonRheuValv"
+# "PAD"
+# "Pancreat"
+# "PeptUlcer"
+# "Psori"
+# "RheumArth"
+# "RheumHeaDis"   
+# "Stroke"
+# "T2Diab"
+# "TChol"
+# "TG"
+# "Urolith"
+# "VaricVeins"
+# "VTE"
+# "WHRBMI"
+"AcApp"
+# "AlcCons"
+# "ALT"
+# "AST"
+"CK"
+"CRVO"
+# "HipRep"

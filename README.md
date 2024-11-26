@@ -1,6 +1,12 @@
+# BRaVa curation
+
+This repository contains a collection of scripts and guidelines for curating and running analyses within the BRaVa consortium.
+
 # Example WES QC pipeline
 
 A collection of scripts to use as a starting point for running quality control on whole exome sequencing datasets using Hail.
+
+The results, including plots and tables along the way, of applying these guidelines, to the UK Biobank 450k callset are available at [brava-genetics.github.io/BRaVa_curation](https://brava-genetics.github.io/BRaVa_curation/).
 
 Throughout, we assume that the reference geneome is GRCh38. If this isn't the reference used for calling in your dataset, switch to the appropriate reference by changing `REFERENCE = 'GRCh38'` in each of the Hail python scripts.
 

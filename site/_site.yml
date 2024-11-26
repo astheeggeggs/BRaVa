@@ -1,0 +1,17 @@
+name: "BRaVa"
+output_dir: "../docs"
+navbar:
+  title: '<div><img src="BRaVa_logo.svg" style="width:20px;height:20px;"/> BRaVa: Biobank Rare Variant Analysis</div>'
+  left:
+    - text: "Detailed QC"
+      href: qc.html
+    - text: "QC Summary"
+      href: qc_summary.html
+  right:
+    - icon: fa-github
+      href: https://github.com/BRaVa-genetics/BRaVa_curation
+    - icon: fa-twitter
+      href: https://twitter.com/BRaVa_genetics
+output:
+  html_document:
+    self_contained: true
